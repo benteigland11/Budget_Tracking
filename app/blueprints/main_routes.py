@@ -53,7 +53,6 @@ def index():
     # --- Analytics Period (for the main dashboard view) ---
     analytics_period_type = request.args.get('period_type', default='monthly') 
     try:
-        # Use 'year' from args for analytics, default to current_year_int
         analytics_view_year = int(request.args.get('year')) if request.args.get('year') and request.args.get('year').isdigit() else current_year_int
     except (ValueError, TypeError):
         analytics_view_year = current_year_int
@@ -64,13 +63,10 @@ def index():
     elif analytics_view_month_str and analytics_view_month_str.isdigit():
         analytics_view_month = int(analytics_view_month_str)
     else: 
-        # If 'month' is not for analytics or invalid, default to current month for monthly analytics
         analytics_view_month = current_month_int if analytics_period_type == 'monthly' else None
     current_app.logger.info(f"Analytics view determined: Type={analytics_period_type}, Year={analytics_view_year}, Month={analytics_view_month}")
 
     # --- Budget Planning Period (for the modal's content) ---
-    # These parameters specifically come from the budget modal's period selection form
-    # or the "Plan Budget" button link (which should also use budget_year/budget_month)
     modal_budget_year_from_args = request.args.get('budget_year')
     modal_budget_month_from_args = request.args.get('budget_month')
     current_app.logger.info(f"For budget modal - Raw from request.args: budget_year='{modal_budget_year_from_args}', budget_month='{modal_budget_month_from_args}'")
@@ -78,15 +74,12 @@ def index():
     if modal_budget_year_from_args and modal_budget_year_from_args.isdigit():
         year_for_budget_modal_data = int(modal_budget_year_from_args)
     else:
-        # If 'budget_year' is not in args (e.g. initial page load without specific budget params),
-        # default to the current system year for the modal.
         year_for_budget_modal_data = current_year_int
         current_app.logger.info(f"Budget modal year (budget_year param missing or invalid) defaulting to current system year: {current_year_int}")
 
     if modal_budget_month_from_args and modal_budget_month_from_args.isdigit():
         month_for_budget_modal_data = int(modal_budget_month_from_args)
     else:
-        # If 'budget_month' is not in args, default to current system month for the modal.
         month_for_budget_modal_data = current_month_int
         current_app.logger.info(f"Budget modal month (budget_month param missing or invalid) defaulting to current system month: {current_month_int}")
     
@@ -135,6 +128,7 @@ def index():
         focused_main_category_id=request.args.get('main_cat_focus', type=int) 
     )
     
+    # Overall totals (all time)
     total_income_row = conn.execute("SELECT SUM(amount) FROM transactions WHERE type = 'income'").fetchone()
     total_income = total_income_row[0] if total_income_row and total_income_row[0] is not None else 0.0
     total_expenses_row = conn.execute("SELECT SUM(amount) FROM transactions WHERE type = 'expense'").fetchone()
@@ -159,6 +153,11 @@ def index():
                            focused_main_category_id=financial_summary['focused_main_category_id'],       
                            focused_main_category_name=financial_summary['focused_main_category_name'], 
                            
+                           # MODIFICATION: Pass period-specific totals to the template
+                           period_total_expenses=financial_summary.get('period_total_expenses', 0.0),
+                           period_total_income=financial_summary.get('period_total_income', 0.0),
+                           period_total_budgeted=financial_summary.get('period_total_budgeted', 0.0),
+                           
                            view_period_type=analytics_period_type, 
                            view_year=analytics_view_year, 
                            view_month=analytics_view_month, 
@@ -167,8 +166,9 @@ def index():
                            budget_planning_month=month_for_budget_modal_data, 
                            budget_goals_for_planning_ui=budget_goals_for_planning_ui, 
                            
-                           total_income=total_income, total_expenses=total_expenses,
-                           balance=balance, 
+                           total_income=total_income, # All-time total income
+                           total_expenses=total_expenses, # All-time total expenses
+                           balance=balance, # All-time balance
                            current_year=current_year_int, 
                            current_month=current_month_int,
 

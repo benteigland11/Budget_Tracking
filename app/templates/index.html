@@ -60,16 +60,27 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        z-index: 10; /* Ensure it's above table content */
+        z-index: 10; 
     }
 </style>
 {% endblock %}
 
+{% block page_title %}
+    {% if view_period_type == 'yearly' %}
+        Yearly Overview - {{ view_year }}
+    {% else %}
+        Monthly Dashboard - {{ view_month | month_name }} {{ view_year }}
+    {% endif %}
+{% endblock %}
+
+
 {% block content %}
-    {# ... (Your existing content block: action buttons, summary stats, analytics section, transaction history) ... #}
     <div class="row action-buttons text-center text-md-start">
         <div class="col-md-auto mb-2 mb-md-0">
-            <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#addTransactionModal" id="openAddTransactionModalBtn">
+            <button type="button" class="btn btn-primary btn-lg" 
+                    data-bs-toggle="modal" data-bs-target="#addTransactionModal" 
+                    id="openAddTransactionModalBtn"
+                    data-add-action-url="{{ url_for('transactions.add_transaction') }}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-plus-circle-fill me-2" viewBox="0 0 16 16"><path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0M8.5 4.5a.5.5 0 0 0-1 0v3h-3a.5.5 0 0 0 0 1h3v3a.5.5 0 0 0 1 0v-3h3a.5.5 0 0 0 0-1h-3z"/></svg> Add Transaction
             </button>
         </div>
@@ -85,13 +96,53 @@
         </div>
     </div>
     
-    <section class="summary-stats mb-4">
+    <section class="summary-stats mb-2"> {# Reduced margin-bottom for tighter layout #}
          <div class="row">
             <div class="col-md-4"><div class="card"><div class="card-body py-3 px-2"><h5>Total Income (All Time)</h5><p class="text-success mb-0">${{ "%.2f"|format(total_income) }}</p></div></div></div>
             <div class="col-md-4"><div class="card"><div class="card-body py-3 px-2"><h5>Total Expenses (All Time)</h5><p class="text-danger mb-0">${{ "%.2f"|format(total_expenses) }}</p></div></div></div>
             <div class="col-md-4"><div class="card"><div class="card-body py-3 px-2"><h5>Net Balance (All Time)</h5><p class="{{ 'text-success' if balance >= 0 else 'text-danger' }} mb-0">${{ "%.2f"|format(balance) }}</p></div></div></div>
         </div>
     </section>
+
+    {# MODIFICATION: Added new row for Period-Specific Totals #}
+    <section class="summary-stats mb-4">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card bg-light">
+                    <div class="card-body py-3 px-2">
+                        <h5>
+                            {% if view_period_type == 'yearly' %}Yearly{% else %}Monthly{% endif %} Income
+                            <small class="text-muted d-block">({{ view_month | month_name if view_month else '' }} {{ view_year }})</small>
+                        </h5>
+                        <p class="text-primary mb-0">${{ "%.2f"|format(period_total_income) }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-light">
+                    <div class="card-body py-3 px-2">
+                        <h5>
+                            {% if view_period_type == 'yearly' %}Yearly{% else %}Monthly{% endif %} Expenses
+                            <small class="text-muted d-block">({{ view_month | month_name if view_month else '' }} {{ view_year }})</small>
+                        </h5>
+                        <p class="text-danger mb-0">${{ "%.2f"|format(period_total_expenses) }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-light">
+                    <div class="card-body py-3 px-2">
+                        <h5>
+                           {% if view_period_type == 'yearly' %}Yearly{% else %}Monthly{% endif %} Budgeted
+                           <small class="text-muted d-block">({{ view_month | month_name if view_month else '' }} {{ view_year }})</small>
+                        </h5>
+                        <p class="text-info mb-0">${{ "%.2f"|format(period_total_budgeted) }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
 
     <section id="analyticsSection" class="mb-5">
         <div class="card">
@@ -175,7 +226,15 @@
                         <td class="text-end">${{ "%.2f"|format(t_item.amount) }}</td>
                         <td><span class="badge rounded-pill bg-{{'danger' if t_item.type=='expense' else 'success'}}">{{t_item.type.capitalize()}}</span></td>
                         <td class="text-center transaction-actions">
-                            <button type="button" class="btn btn-sm btn-outline-primary edit-btn" data-bs-toggle="modal" data-bs-target="#addTransactionModal" data-id="{{ t_item.id }}" data-amount="{{ t_item.amount }}" data-date="{{ t_item.date }}" data-type="{{ t_item.type }}" data-category_id="{{ t_item.category_id if t_item.category_id is not none else '' }}" data-main_category_for_edit="{{ t_item.main_category_for_edit if t_item.main_category_for_edit is not none else '' }}">
+                            <button type="button" class="btn btn-sm btn-outline-primary edit-btn" 
+                                    data-bs-toggle="modal" data-bs-target="#addTransactionModal" 
+                                    data-id="{{ t_item.id }}" 
+                                    data-amount="{{ t_item.amount }}" 
+                                    data-date="{{ t_item.date }}" 
+                                    data-type="{{ t_item.type }}" 
+                                    data-category_id="{{ t_item.category_id if t_item.category_id is not none else '' }}" 
+                                    data-main_category_for_edit="{{ t_item.main_category_for_edit if t_item.main_category_for_edit is not none else '' }}"
+                                    data-update-action-url-base="{{ url_for('transactions.update_transaction', transaction_id=0) }}">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16"><path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.813z"/><path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5z"/></svg>
                             </button>
                             <form action="{{ url_for('transactions.delete_transaction', transaction_id=t_item.id, year=view_year, month=view_month if view_month else '', main_cat_focus=focused_main_category_id if focused_main_category_id else '', period_type=view_period_type) }}" method="POST" style="display: inline;" onsubmit="return confirm('Delete this transaction?');">
@@ -198,853 +257,34 @@
 
 
 {% block scripts %}
+{# Make Flask data available to external JS files #}
 <script>
     var hierarchicalDataFromFlask = {{ hierarchical_categories_data_for_js|tojson|safe }};
     var monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    
+    var flaskVariables = {
+        view_year: {{ view_year|tojson }},
+        view_month: {{ view_month|tojson }}, 
+        view_period_type: {{ view_period_type|tojson }},
+        focused_main_category_id: {{ focused_main_category_id|tojson }}
+    };
 
-    document.addEventListener('DOMContentLoaded', () => {
-        const budgetModalEl = document.getElementById('budgetPlanningModal');
-        let budgetModalInstance = budgetModalEl ? new bootstrap.Modal(budgetModalEl) : null;
+    var initialExpectedVsActualData = JSON.parse({{ expected_vs_actual_chart_data|tojson|safe }});
+    var nwsBudgetedChartData = {{ nws_budgeted_chart_data|tojson|safe }};
+    var nwsActualChartData = {{ nws_actual_chart_data|tojson|safe }};
 
-        const categoriesModalEl = document.getElementById('manageCategoriesModal');
-        let categoriesModalInstance = null;
-        if (categoriesModalEl) {
-            categoriesModalInstance = new bootstrap.Modal(categoriesModalEl);
-            categoriesModalEl.addEventListener('shown.bs.modal', initializeManageCategoriesModal);
-        }
-        
-        const addTransactionModalEl = document.getElementById('addTransactionModal');
-        if (addTransactionModalEl) {
-            addTransactionModalEl.addEventListener('hidden.bs.modal', resetTransactionForm);
-        }
-
-        const urlParams = new URLSearchParams(window.location.search);
-        let paramsModifiedForHistory = false;
-
-        if (urlParams.get('open_budget_planner') === 'true') { 
-            if (budgetModalInstance) {
-                budgetModalInstance.show();
-            }
-            urlParams.delete('open_budget_planner');
-            paramsModifiedForHistory = true;
-        }
-        if (urlParams.get('open_manage_categories') === 'true') {
-            if (categoriesModalInstance) {
-                categoriesModalInstance.show();
-            }
-            urlParams.delete('open_manage_categories');
-            paramsModifiedForHistory = true;
-        }
-        
-        if (paramsModifiedForHistory) {
-            const newParamsString = urlParams.toString();
-            const newRelativePathQuery = window.location.pathname + (newParamsString ? '?' + newParamsString : '');
-            window.history.replaceState({}, document.title, newRelativePathQuery);
-        }
-
-        // --- Budget Planning Modal Logic ---
-        const budgetMonthSelectModal = document.getElementById('budget_month_select_modal');
-        const budgetYearSelectModal = document.getElementById('budget_year_select_modal');
-        const budgetPeriodDisplay = document.getElementById('budgetPeriodDisplay');
-        const budgetPlanningTableBody = document.getElementById('budgetPlanningTableBody');
-        const hiddenBudgetYearInput = document.getElementById('hiddenBudgetYearInput');
-        const hiddenBudgetMonthInput = document.getElementById('hiddenBudgetMonthInput');
-        const saveCurrentBudgetBtn = document.getElementById('saveCurrentBudgetBtn');
-        let isBudgetFormDirty = false;
-        let currentBudgetYear = '{{ budget_planning_year }}'; // Initial values from Flask
-        let currentBudgetMonth = '{{ budget_planning_month }}';
-
-        function updateSaveButtonText(year, monthName) {
-            if (saveCurrentBudgetBtn) {
-                saveCurrentBudgetBtn.textContent = `Save ${monthName} ${year} Plan`;
-            }
-        }
-        
-        // Call initially to set the button text
-        if (budgetPeriodDisplay && saveCurrentBudgetBtn) {
-             // budget_planning_month is an int, monthNames is 0-indexed
-            updateSaveButtonText(currentBudgetYear, monthNames[parseInt(currentBudgetMonth) - 1]);
-        }
-
-
-        function attachBudgetInputListeners() {
-            if (budgetPlanningTableBody) {
-                budgetPlanningTableBody.querySelectorAll('input[name="budgeted_amount"]').forEach(input => {
-                    input.removeEventListener('input', markBudgetFormDirty); // Remove old if any
-                    input.addEventListener('input', markBudgetFormDirty);
-                });
-            }
-        }
-        function markBudgetFormDirty() {
-            isBudgetFormDirty = true;
-            console.log("Budget form is dirty.");
-        }
-
-        async function saveCurrentBudget(callbackAfterSave) {
-            const budgetForm = document.getElementById('budgetGoalsForm');
-            if (!budgetForm) return false;
-
-            const formData = new FormData(budgetForm);
-            // Log form data before sending
-            // for (var pair of formData.entries()) {
-            //     console.log('Budget save FormData: ', pair[0]+ ', ' + pair[1]); 
-            // }
-            
-            try {
-                const response = await fetch(budgetForm.action, {
-                    method: 'POST',
-                    body: formData
-                });
-                if (!response.ok) {
-                    // If server returns an error, try to parse it for a message
-                    let errorMsg = `HTTP error! status: ${response.status}`;
-                    try {
-                        const errorData = await response.json();
-                        errorMsg = errorData.message || errorMsg;
-                    } catch (e) { /* ignore if response is not json */ }
-                    alert(`Error saving budget: ${errorMsg}`); // Replace with better UI
-                    return false; // Indicate save failed
-                }
-                // Assuming success if response.ok (e.g., 2xx status, or 302 redirect)
-                // The actual flash messages for success/info will come from the server on page reload
-                // or could be handled via JSON response if we change the /set endpoint.
-                console.log("Budget saved successfully (or no changes detected).");
-                isBudgetFormDirty = false; 
-                if (callbackAfterSave && typeof callbackAfterSave === 'function') {
-                    callbackAfterSave();
-                }
-                return true; // Indicate save was successful (or no error from server)
-            } catch (error) {
-                console.error("Error submitting budget form:", error);
-                alert("An unexpected error occurred while saving the budget.");
-                return false; // Indicate save failed
-            }
-        }
-
-        if (saveCurrentBudgetBtn) {
-            saveCurrentBudgetBtn.addEventListener('click', async function(event) {
-                event.preventDefault(); // Prevent default form submission
-                const success = await saveCurrentBudget(() => {
-                    // After successful save, redirect to show the saved month's analytics
-                    const savedYear = hiddenBudgetYearInput.value;
-                    const savedMonth = hiddenBudgetMonthInput.value;
-                    window.location.href = `{{ url_for('main.index') }}?year=${savedYear}&month=${savedMonth}&period_type=monthly`;
-                });
-                if (!success) {
-                    // Handle save failure if needed (e.g. keep modal open, show specific error)
-                    // For now, alert is shown in saveCurrentBudget
-                }
-            });
-        }
-
-
-        async function fetchAndUpdateBudgetPlanner(year, month, forceSwitch = false) {
-            if (!year || !month) {
-                console.warn("Year or month not provided for budget planner update.");
-                return;
-            }
-            
-            if (isBudgetFormDirty && !forceSwitch) {
-                const currentMonthName = monthNames[parseInt(currentBudgetMonth) - 1];
-                const confirmation = confirm(`You have unsaved changes for ${currentMonthName} ${currentBudgetYear}. Save changes before switching?`);
-                
-                if (confirmation) { // User clicked OK (Save)
-                    const saved = await saveCurrentBudget();
-                    if (saved) {
-                        // Proceed to fetch new month's data after successful save
-                        isBudgetFormDirty = false; // Reset as save was successful
-                        // Fall through to fetch new data
-                    } else {
-                        return; // Save failed, do not switch month
-                    }
-                } else { // User clicked Cancel on "Save changes?" OR "No" if it were a three-button dialog
-                    // If they cancel the "Save changes?" dialog, they might still want to switch or not.
-                    // For a simple confirm, "Cancel" means "don't save, but also don't switch yet".
-                    // Let's refine this:
-                    const proceedWithoutSaving = confirm(`Discard unsaved changes for ${currentMonthName} ${currentBudgetYear} and switch to ${monthNames[parseInt(month)-1]} ${year}?`);
-                    if (!proceedWithoutSaving) {
-                        // User decided not to switch after all
-                        // Reset dropdowns to currentBudgetYear and currentBudgetMonth
-                        if(budgetYearSelectModal) budgetYearSelectModal.value = currentBudgetYear;
-                        if(budgetMonthSelectModal) budgetMonthSelectModal.value = currentBudgetMonth;
-                        return; 
-                    }
-                    // User chose to discard changes and switch
-                    isBudgetFormDirty = false; 
-                }
-            }
-
-
-            console.log(`Fetching budget data for Year: ${year}, Month: ${month}`);
-            if (budgetPlanningTableBody) {
-                budgetPlanningTableBody.innerHTML = '<tr><td colspan="3" class="text-center p-5"><div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div></td></tr>';
-            }
-            
-            try {
-                const response = await fetch(`{{ url_for('budgets.get_planning_data') }}?year=${year}&month=${month}`);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}, message: ${await response.text()}`);
-                }
-                const data = await response.json();
-
-                if (data.error) {
-                    console.error("Error fetching budget planning data from backend:", data.error);
-                    if (budgetPlanningTableBody) budgetPlanningTableBody.innerHTML = `<tr><td colspan="3" class="text-center text-danger p-3">Error loading budget data: ${data.error}</td></tr>`;
-                    return;
-                }
-
-                currentBudgetYear = data.selected_year.toString();
-                currentBudgetMonth = data.selected_month.toString();
-
-                if (budgetPeriodDisplay) budgetPeriodDisplay.textContent = `${data.selected_month_name} ${data.selected_year}`;
-                if (hiddenBudgetYearInput) hiddenBudgetYearInput.value = data.selected_year;
-                if (hiddenBudgetMonthInput) hiddenBudgetMonthInput.value = data.selected_month;
-                updateSaveButtonText(data.selected_year, data.selected_month_name);
-
-
-                if (budgetPlanningTableBody) {
-                    budgetPlanningTableBody.innerHTML = ''; 
-                    const goals = data.budget_goals_for_planning_ui || [];
-                    if (goals.length === 0) {
-                        budgetPlanningTableBody.innerHTML = '<tr><td colspan="3" class="text-center">No categories found for budgeting. Add categories first.</td></tr>';
-                    } else {
-                        goals.forEach(mainCat => {
-                            let mainRowHtml = `
-                                <tr class="budget-category-header">
-                                    <td colspan="2">${mainCat.name}</td>
-                                    <td class="text-end">`;
-                            if (!mainCat.has_sub_categories) {
-                                mainRowHtml += `
-                                    <input type="hidden" name="budget_category_id" value="${mainCat.id}">
-                                    <input type="number" step="0.01" name="budgeted_amount" class="form-control form-control-sm budget-input" 
-                                           value="${(mainCat.budgeted_amount != null && mainCat.budgeted_amount > 0) ? parseFloat(mainCat.budgeted_amount).toFixed(2) : ''}" 
-                                           placeholder="0.00">`;
-                            } else {
-                                mainRowHtml += `<span class="text-muted fst-italic">$${parseFloat(mainCat.budgeted_amount != null ? mainCat.budgeted_amount : 0.0).toFixed(2)}</span>`;
-                            }
-                            mainRowHtml += `</td></tr>`;
-                            budgetPlanningTableBody.insertAdjacentHTML('beforeend', mainRowHtml);
-
-                            if (mainCat.has_sub_categories && mainCat.sub_categories) {
-                                mainCat.sub_categories.forEach(subCat => {
-                                    const typeBadgeClass = subCat.financial_goal_type === 'Need' ? 'primary' : 
-                                                           subCat.financial_goal_type === 'Want' ? 'warning' :
-                                                           subCat.financial_goal_type === 'Saving' ? 'success' : 'secondary';
-                                    const typeName = subCat.financial_goal_type || 'N/A';
-                                    let subRowHtml = `
-                                        <tr class="budget-subcategory-row">
-                                            <td style="padding-left: 2rem !important;">${subCat.name}</td>
-                                            <td>
-                                                 <input type="hidden" name="budget_category_id" value="${subCat.id}">
-                                                 <span class="badge bg-${typeBadgeClass} text-dark">${typeName}</span>
-                                            </td>
-                                            <td class="text-end">
-                                                <input type="number" step="0.01" name="budgeted_amount" class="form-control form-control-sm budget-input" 
-                                                       value="${(subCat.budgeted_amount != null && subCat.budgeted_amount > 0) ? parseFloat(subCat.budgeted_amount).toFixed(2) : ''}" 
-                                                       placeholder="0.00">
-                                            </td>
-                                        </tr>`;
-                                    budgetPlanningTableBody.insertAdjacentHTML('beforeend', subRowHtml);
-                                });
-                            }
-                        });
-                    }
-                    attachBudgetInputListeners(); // Re-attach listeners to new inputs
-                    isBudgetFormDirty = false; // Reset dirty flag after loading new data
-                }
-                
-                const currentUrl = new URL(window.location.href);
-                currentUrl.searchParams.set('budget_year', year);
-                currentUrl.searchParams.set('budget_month', month);
-                currentUrl.searchParams.set('open_budget_planner', 'true'); 
-                window.history.pushState({path:currentUrl.toString()}, '', currentUrl.toString());
-
-            } catch (error) {
-                console.error("Failed to fetch or update budget planner:", error);
-                if (budgetPlanningTableBody) budgetPlanningTableBody.innerHTML = '<tr><td colspan="3" class="text-center text-danger p-3">Failed to load budget data. Check console.</td></tr>';
-            }
-        }
-
-        function handleBudgetPeriodChangeForAjax() {
-            if (budgetMonthSelectModal && budgetYearSelectModal) {
-                const selectedMonth = budgetMonthSelectModal.value;
-                const selectedYear = budgetYearSelectModal.value;
-                // Check if the period actually changed to avoid redundant processing if one dropdown changes but overall period is same
-                if (selectedYear !== currentBudgetYear || selectedMonth !== currentBudgetMonth) {
-                    fetchAndUpdateBudgetPlanner(selectedYear, selectedMonth);
-                }
-            }
-        }
-
-        if (budgetMonthSelectModal) {
-            budgetMonthSelectModal.addEventListener('change', handleBudgetPeriodChangeForAjax);
-        }
-        if (budgetYearSelectModal) {
-            budgetYearSelectModal.addEventListener('change', handleBudgetPeriodChangeForAjax);
-        }
-        // Attach initial listeners for budget inputs if modal is already open with data
-        attachBudgetInputListeners(); 
-        // --- End Budget Planning Modal AJAX Logic ---
-
-
-        // --- Add/Edit Transaction Modal Logic ---
-        // ... (This section is complete and correct from previous version)
-        const transactionForm = document.getElementById('transactionFormInModal'); 
-        const modalTransactionTitle = document.getElementById('addTransactionModalLabel');
-        const modalAmountInput = document.getElementById('modal_amount');
-        const modalDateInput = document.getElementById('modal_date');
-        const modalTypeSelect = document.getElementById('modal_type');
-        const mainCategorySelectForTransaction = document.getElementById('modal_main_category_select');
-        const subCategorySelectForTransaction = document.getElementById('modal_sub_category_select');
-        const subCategoryWrapperForTransaction = document.getElementById('modal_subcategory_wrapper');
-        const finalCategoryIdInputForTransaction = document.getElementById('final_category_id');
-        const transactionIdEditInput = document.getElementById('transaction_id_edit');
-
-        function resetTransactionForm() {
-            if (transactionForm) transactionForm.reset(); 
-            if (transactionIdEditInput) transactionIdEditInput.value = ''; 
-            if (modalTransactionTitle) modalTransactionTitle.textContent = 'Add New Transaction';
-            const saveBtnInFooter = document.querySelector('#addTransactionModal .modal-footer button[type="submit"]');
-            if (saveBtnInFooter) saveBtnInFooter.textContent = 'Save Transaction';
-
-            if (transactionForm) {
-                const currentUrlParamsForTx = new URLSearchParams(window.location.search);
-                let actionUrl = "{{ url_for('transactions.add_transaction') }}";
-                const paramsForTxRedirect = new URLSearchParams();
-                paramsForTxRedirect.append('year', currentUrlParamsForTx.get('year') || '{{ view_year }}');
-                paramsForTxRedirect.append('month', currentUrlParamsForTx.get('month') || ('{{ view_month }}' === 'None' ? '' : '{{ view_month }}'));
-                paramsForTxRedirect.append('period_type', currentUrlParamsForTx.get('period_type') || '{{ view_period_type }}');
-                if (currentUrlParamsForTx.get('main_cat_focus')) {
-                    paramsForTxRedirect.append('main_cat_focus', currentUrlParamsForTx.get('main_cat_focus'));
-                }
-                transactionForm.action = actionUrl + '?' + paramsForTxRedirect.toString();
-            }
-            if (mainCategorySelectForTransaction) mainCategorySelectForTransaction.value = "";
-            if (subCategorySelectForTransaction) subCategorySelectForTransaction.innerHTML = '<option value="">-- Select subcategory (optional) --</option>';
-            if (subCategoryWrapperForTransaction) subCategoryWrapperForTransaction.style.display = 'none';
-            if (finalCategoryIdInputForTransaction) finalCategoryIdInputForTransaction.value = "";
-            if (modalDateInput) {
-                const today = new Date();
-                modalDateInput.value = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
-            }
-            if(modalTypeSelect) modalTypeSelect.value = 'expense';
-        } 
-
-        if (mainCategorySelectForTransaction) {
-            const mainCategoriesForTxModal = hierarchicalDataFromFlask.main_categories || [];
-            mainCategorySelectForTransaction.innerHTML = '<option value="" disabled selected>Select main category...</option>';
-            mainCategoriesForTxModal.forEach(mainCat => {
-                const option = document.createElement('option');
-                option.value = mainCat.id;
-                option.textContent = mainCat.name;
-                mainCategorySelectForTransaction.appendChild(option);
-            });
-
-            mainCategorySelectForTransaction.addEventListener('change', function() {
-                if (finalCategoryIdInputForTransaction) finalCategoryIdInputForTransaction.value = this.value; 
-                populateSubcategoriesForTransaction(this.value);
-                if (subCategorySelectForTransaction) subCategorySelectForTransaction.value = ""; 
-            });
-        } 
-        
-        function populateSubcategoriesForTransaction(selectedMainId, selectedSubId = null) {
-            if (!subCategorySelectForTransaction || !subCategoryWrapperForTransaction) return;
-            const subCategoriesMapForTxModal = hierarchicalDataFromFlask.sub_categories_map || {};
-            subCategorySelectForTransaction.innerHTML = '<option value="">-- Select subcategory (optional) --</option>';
-            const subs = subCategoriesMapForTxModal[selectedMainId] || [];
-
-            if (subs.length > 0) {
-                subs.forEach(subCat => {
-                    const option = document.createElement('option');
-                    option.value = subCat.id;
-                    option.textContent = subCat.name;
-                    if (selectedSubId && subCat.id.toString() === selectedSubId.toString()) {
-                        option.selected = true;
-                    }
-                    subCategorySelectForTransaction.appendChild(option);
-                });
-                subCategoryWrapperForTransaction.style.display = 'block';
-            } else {
-                subCategoryWrapperForTransaction.style.display = 'none';
-            }
-        }
-        
-        if (subCategorySelectForTransaction) { 
-            subCategorySelectForTransaction.addEventListener('change', function() {
-                if (this.value && finalCategoryIdInputForTransaction) { 
-                    finalCategoryIdInputForTransaction.value = this.value; 
-                } else if (mainCategorySelectForTransaction && finalCategoryIdInputForTransaction) { 
-                    finalCategoryIdInputForTransaction.value = mainCategorySelectForTransaction.value; 
-                }
-            });
-        } 
-        
-        document.getElementById('openAddTransactionModalBtn')?.addEventListener('click', function() { 
-            resetTransactionForm(); 
-        });
-        
-        document.querySelectorAll('.edit-btn').forEach(button => { 
-            button.addEventListener('click', function() {
-                resetTransactionForm(); 
-                const transactionId = this.dataset.id;
-                if (modalTransactionTitle) modalTransactionTitle.textContent = 'Edit Transaction';
-                const saveBtnInFooter = document.querySelector('#addTransactionModal .modal-footer button[type="submit"]');
-                if (saveBtnInFooter) saveBtnInFooter.textContent = 'Save Changes';
-                
-                if (transactionForm) {
-                    const currentUrlParamsForTx = new URLSearchParams(window.location.search);
-                    let actionUrl = `{{ url_for('transactions.update_transaction', transaction_id=0) }}`.replace('/0', `/${transactionId}`);
-                    const paramsForTxRedirect = new URLSearchParams();
-                    paramsForTxRedirect.append('year', currentUrlParamsForTx.get('year') || '{{ view_year }}');
-                    paramsForTxRedirect.append('month', currentUrlParamsForTx.get('month') || ('{{ view_month }}' === 'None' ? '' : '{{ view_month }}'));
-                    paramsForTxRedirect.append('period_type', currentUrlParamsForTx.get('period_type') || '{{ view_period_type }}');
-                    if (currentUrlParamsForTx.get('main_cat_focus')) {
-                        paramsForTxRedirect.append('main_cat_focus', currentUrlParamsForTx.get('main_cat_focus'));
-                    }
-                    transactionForm.action = actionUrl + '?' + paramsForTxRedirect.toString();
-                }
-
-                if (transactionIdEditInput) transactionIdEditInput.value = transactionId; 
-                if (modalAmountInput) modalAmountInput.value = this.dataset.amount;
-                if (modalDateInput) modalDateInput.value = this.dataset.date;
-                if (modalTypeSelect) modalTypeSelect.value = this.dataset.type;
-                
-                const categoryId = this.dataset.category_id; 
-                const mainCategoryForEdit = this.dataset.main_category_for_edit; 
-
-                if (mainCategoryForEdit && mainCategorySelectForTransaction) { 
-                    mainCategorySelectForTransaction.value = mainCategoryForEdit;
-                    populateSubcategoriesForTransaction(mainCategoryForEdit, categoryId); 
-                    if(finalCategoryIdInputForTransaction) finalCategoryIdInputForTransaction.value = categoryId;
-                } else if (categoryId && mainCategorySelectForTransaction) { 
-                    mainCategorySelectForTransaction.value = categoryId; 
-                    populateSubcategoriesForTransaction(categoryId); 
-                    if(finalCategoryIdInputForTransaction) finalCategoryIdInputForTransaction.value = categoryId;
-                } else { 
-                    if(mainCategorySelectForTransaction) mainCategorySelectForTransaction.value = "";
-                    populateSubcategoriesForTransaction(""); 
-                    if(finalCategoryIdInputForTransaction) finalCategoryIdInputForTransaction.value = ""; 
-                }
-            });
-        }); 
-
-        // --- Charts Logic ---
-        // ... (This section is complete and correct from previous version)
-        let expectedVsActualChartInstance = null; 
-        const expectedVsActualCtx = document.getElementById('expectedVsActualChart')?.getContext('2d');
-        const expectedVsActualChartTitleEl = document.getElementById('expectedVsActualChartTitle');
-        const backToMainCategoriesChartBtn = document.getElementById('backToMainCategoriesChartBtn');
-
-        function renderExpectedVsActualChart(chartData) {
-            if (expectedVsActualCtx) {
-                if (expectedVsActualChartInstance) { expectedVsActualChartInstance.destroy(); }
-                if (chartData && chartData.labels && chartData.labels.length > 0) {
-                    expectedVsActualChartInstance = new Chart(expectedVsActualCtx, {
-                        type: 'bar',
-                        data: {
-                            labels: chartData.labels,
-                            datasets: [
-                                { label: 'Budgeted ($)', data: chartData.budgeted_data, backgroundColor: 'rgba(54, 162, 235, 0.6)', borderColor: 'rgba(54, 162, 235, 1)', borderWidth: 1 },
-                                { label: 'Actual ($)', data: chartData.actual_data, backgroundColor: 'rgba(255, 99, 132, 0.6)', borderColor: 'rgba(255, 99, 132, 1)', borderWidth: 1 }
-                            ]
-                        },
-                        options: { 
-                            responsive: true, maintainAspectRatio: false, 
-                            scales: { y: { beginAtZero: true, ticks: { callback: function(value) { return '$' + value; }} } }, 
-                            plugins: { 
-                                legend: { position: 'top' },
-                                tooltip: { callbacks: { label: function(context) { let label = context.dataset.label || ''; if (label) { label += ': '; } if (context.parsed.y !== null) { label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y); } return label;}}}
-                            },
-                            onClick: (event, elements) => {
-                                if (elements.length > 0) {
-                                    const chartElement = elements[0];
-                                    const index = chartElement.index;
-                                    const categoryIdForDrilldown = chartData.category_ids_for_drilldown[index];
-                                    if (categoryIdForDrilldown) { 
-                                        const currentUrl = new URL(window.location.href);
-                                        currentUrl.searchParams.set('main_cat_focus', categoryIdForDrilldown);
-                                        const params = new URLSearchParams(window.location.search); 
-                                        currentUrl.searchParams.set('month', params.get('month') || ('{{ view_month }}' === 'None' ? '' : '{{ view_month }}'));
-                                        currentUrl.searchParams.set('year', params.get('year') || '{{ view_year }}');
-                                        currentUrl.searchParams.set('period_type', params.get('period_type') || '{{ view_period_type }}');
-                                        window.location.href = currentUrl.toString();
-                                    }
-                                }
-                            }
-                        }
-                    });
-                } else { if (expectedVsActualCtx.canvas) {expectedVsActualCtx.canvas.parentElement.innerHTML = '<p class="text-center text-muted p-5">No data for Budget vs. Actual chart.</p>';} }
-            }
-        }
-        
-        if (backToMainCategoriesChartBtn && expectedVsActualChartTitleEl) {
-            if ({{ focused_main_category_id|tojson|safe }}) { 
-                backToMainCategoriesChartBtn.style.display = 'inline-block';
-                backToMainCategoriesChartBtn.addEventListener('click', () => {
-                    const currentUrl = new URL(window.location.href);
-                    currentUrl.searchParams.delete('main_cat_focus');
-                    const params = new URLSearchParams(window.location.search); 
-                    currentUrl.searchParams.set('month', params.get('month') || ('{{ view_month }}' === 'None' ? '' : '{{ view_month }}'));
-                    currentUrl.searchParams.set('year', params.get('year') || '{{ view_year }}');
-                    currentUrl.searchParams.set('period_type', params.get('period_type') || '{{ view_period_type }}');
-                    window.location.href = currentUrl.toString();
-                });
-            } else {
-                backToMainCategoriesChartBtn.style.display = 'none';
-            }
-        }
-
-        function renderNwsPieChart(canvasId, chartTitle, chartDataJson) {
-            const ctx = document.getElementById(canvasId)?.getContext('2d');
-            if (ctx) {
-                const existingChart = Chart.getChart(ctx);
-                if (existingChart) { existingChart.destroy(); }
-                try {
-                    const data = JSON.parse(chartDataJson); 
-                    const nonZeroDataExists = data.data && data.data.some(d => parseFloat(d) > 0);
-                    if (data.labels && nonZeroDataExists) {
-                        new Chart(ctx, {
-                            type: 'pie',
-                            data: {
-                                labels: data.labels,
-                                datasets: [{
-                                    label: chartTitle, data: data.data,
-                                    backgroundColor: ['rgba(255, 99, 132, 0.7)', 'rgba(255, 206, 86, 0.7)', 'rgba(75, 192, 192, 0.7)', 'rgba(201, 203, 207, 0.7)'],
-                                    borderColor: ['#fff'], borderWidth: 1
-                                }]
-                            },
-                            options: { 
-                                responsive: true, maintainAspectRatio: false, 
-                                plugins: { 
-                                    legend: { position: 'bottom' }, 
-                                    tooltip: { callbacks: { label: (c) => `${c.label}: $${parseFloat(c.parsed).toFixed(2)} (${((parseFloat(c.parsed) / c.chart.getDatasetMeta(0).total) * 100).toFixed(1)}%)` }}
-                                }
-                            }
-                        });
-                    } else {
-                         if (ctx.canvas) { ctx.canvas.parentElement.innerHTML = `<p class="text-center text-muted p-5">No data for ${chartTitle}.</p>`;}
-                    }
-                } catch(e) {
-                    console.error("Error parsing JSON for chart " + canvasId + ":", chartDataJson, e);
-                    if (ctx.canvas) { ctx.canvas.parentElement.innerHTML = `<p class="text-center text-danger p-5">Error loading data for ${chartTitle}.</p>`;}
-                }
-            }
-        }
-        
-        const initialExpectedVsActualData = JSON.parse({{ expected_vs_actual_chart_data|tojson|safe }});
-        renderExpectedVsActualChart(initialExpectedVsActualData);
-        renderNwsPieChart('nwsBudgetedChart', 'Budgeted NWS', {{ nws_budgeted_chart_data|tojson|safe }});
-        renderNwsPieChart('nwsActualChart', 'Actual NWS', {{ nws_actual_chart_data|tojson|safe }});
-
-        // --- Manage Categories Modal Client-Side Logic ---
-        // ... (This section is complete and correct from previous version)
-        let pendingNewMainCategories = [];
-        let pendingNewSubCategories = [];
-        let pendingDeletions = []; 
-        let tempCategoryIdCounter = 0; 
-
-        function initializeManageCategoriesModal() {
-            console.log("Initializing Manage Categories Modal JS...");
-            pendingNewMainCategories = [];
-            pendingNewSubCategories = [];
-            pendingDeletions = []; 
-            tempCategoryIdCounter = 0;
-            
-            const alertContainer = document.getElementById('category-modal-alerts');
-            if(alertContainer) alertContainer.innerHTML = '';
-
-            const parentSelect = document.getElementById('newSubCategoryParentSelect');
-            if (parentSelect) {
-                parentSelect.innerHTML = '<option value="" disabled selected>Select parent...</option>';
-                const mainCategoriesForSubAdd = hierarchicalDataFromFlask.main_categories || [];
-                mainCategoriesForSubAdd.forEach(mc => {
-                    const option = document.createElement('option');
-                    option.value = mc.id; 
-                    option.textContent = mc.name;
-                    parentSelect.appendChild(option);
-                });
-            }
-
-            const clientAddMainBtn = document.getElementById('clientAddMainCategoryBtn');
-            const clientAddSubBtn = document.getElementById('clientAddSubCategoryBtn');
-            const saveAllBtn = document.getElementById('saveAllCategoryChangesBtn');
-
-            if (clientAddMainBtn) {
-                clientAddMainBtn.removeEventListener('click', clientSideAddMainCategory); 
-                clientAddMainBtn.addEventListener('click', clientSideAddMainCategory);
-            }
-            if (clientAddSubBtn) {
-                clientAddSubBtn.removeEventListener('click', clientSideAddSubCategory);
-                clientAddSubBtn.addEventListener('click', clientSideAddSubCategory);
-            }
-            if (saveAllBtn) {
-                saveAllBtn.removeEventListener('click', saveAllCategoryChanges);
-                saveAllBtn.addEventListener('click', saveAllCategoryChanges);
-            }
-
-            document.querySelectorAll('.delete-existing-category-btn').forEach(button => {
-                const newButton = button.cloneNode(true);
-                button.parentNode.replaceChild(newButton, button);
-                newButton.addEventListener('click', handleMarkExistingForDeletion);
-            });
-            
-            document.querySelectorAll('#categoryListContainer .list-group-item[data-category-id]').forEach(li => {
-                if (!li.dataset.isPending || li.dataset.isPending === "false") { 
-                    const catId = li.dataset.categoryId;
-                    if (!pendingDeletions.includes(parseInt(catId))) { 
-                         li.classList.remove('marked-for-deletion');
-                         const actionContainer = li.querySelector('.action-buttons-container');
-                         if (actionContainer && !actionContainer.querySelector('.delete-existing-category-btn')) {
-                            const originalDeleteButton = document.createElement('button');
-                            originalDeleteButton.type = 'button';
-                            originalDeleteButton.className = 'btn btn-sm delete-existing-category-btn';
-                            originalDeleteButton.dataset.categoryId = catId;
-                            originalDeleteButton.dataset.categoryName = li.dataset.categoryName;
-                            originalDeleteButton.innerHTML = '&times;';
-                            if (li.classList.contains('main-category-item')) {
-                                originalDeleteButton.classList.add('btn-danger');
-                                originalDeleteButton.title = `Mark to delete main category ${li.dataset.categoryName}`;
-                            } else {
-                                originalDeleteButton.classList.add('btn-outline-danger');
-                                originalDeleteButton.title = `Mark to delete subcategory ${li.dataset.categoryName}`;
-                            }
-                            actionContainer.innerHTML = ''; 
-                            if (li.classList.contains('sub-category-item')) { 
-                                const financialSelect = document.createElement('select');
-                                financialSelect.name = `financial_goal_type_${catId}`;
-                                financialSelect.className = 'form-select form-select-sm financial-type-select me-2 existing-financial-type-select';
-                                financialSelect.innerHTML = `<option value="">Unset</option><option value="Need">Need</option><option value="Want">Want</option><option value="Saving">Saving</option>`;
-                                // TODO: Restore selected value if needed
-                                actionContainer.appendChild(financialSelect);
-                            }
-                            actionContainer.appendChild(originalDeleteButton);
-                            originalDeleteButton.addEventListener('click', handleMarkExistingForDeletion);
-                         }
-                         const finSelect = li.querySelector('.existing-financial-type-select');
-                         if (finSelect) finSelect.disabled = false;
-                    } else {
-                        li.classList.add('marked-for-deletion');
-                        const finSelect = li.querySelector('.existing-financial-type-select');
-                        if (finSelect) finSelect.disabled = true;
-                        const actionContainer = li.querySelector('.action-buttons-container');
-                        if(actionContainer && !actionContainer.querySelector('.undo-delete-btn')) {
-                            actionContainer.innerHTML = `<button type="button" class="btn btn-warning btn-sm undo-delete-btn" data-category-id="${catId}">Undo</button>`;
-                            actionContainer.querySelector('.undo-delete-btn').addEventListener('click', handleUndoMarkForDeletion);
-                        }
-                    }
-                }
-            });
-            console.log("Manage Categories Modal JS Initialized and listeners attached.");
-        }
-        
-        function handleMarkExistingForDeletion(event) {
-            const button = event.currentTarget;
-            const categoryId = parseInt(button.dataset.categoryId);
-            const categoryName = button.dataset.categoryName;
-            const listItem = button.closest('li');
-
-            if (confirm(`Mark "${categoryName}" for deletion? It will be permanently deleted when you save all changes.`)) {
-                if (!pendingDeletions.includes(categoryId)) {
-                    pendingDeletions.push(categoryId);
-                }
-                listItem.classList.add('marked-for-deletion');
-                const financialSelect = listItem.querySelector('.existing-financial-type-select');
-                if (financialSelect) financialSelect.disabled = true;
-
-                const actionContainer = listItem.querySelector('.action-buttons-container');
-                actionContainer.innerHTML = `<button type="button" class="btn btn-warning btn-sm undo-delete-btn" data-category-id="${categoryId}">Undo</button>`;
-                actionContainer.querySelector('.undo-delete-btn').addEventListener('click', handleUndoMarkForDeletion);
-            }
-        }
-
-        function handleUndoMarkForDeletion(event) {
-            const button = event.currentTarget;
-            const categoryId = parseInt(button.dataset.categoryId);
-            const listItem = button.closest('li');
-
-            pendingDeletions = pendingDeletions.filter(id => id !== categoryId);
-            listItem.classList.remove('marked-for-deletion');
-            const financialSelect = listItem.querySelector('.existing-financial-type-select');
-            if (financialSelect) financialSelect.disabled = false;
-            
-            const actionContainer = listItem.querySelector('.action-buttons-container');
-            const originalDeleteButton = document.createElement('button');
-            originalDeleteButton.type = 'button';
-            originalDeleteButton.dataset.categoryId = categoryId;
-            originalDeleteButton.dataset.categoryName = listItem.dataset.categoryName;
-            originalDeleteButton.innerHTML = '&times;';
-
-            if (listItem.classList.contains('main-category-item')) {
-                originalDeleteButton.className = 'btn btn-danger btn-sm delete-existing-category-btn';
-                originalDeleteButton.title = `Mark to delete main category ${listItem.dataset.categoryName}`;
-            } else {
-                originalDeleteButton.className = 'btn btn-outline-danger btn-sm delete-existing-category-btn';
-                 originalDeleteButton.title = `Mark to delete subcategory ${listItem.dataset.categoryName}`;
-            }
-            
-            actionContainer.innerHTML = ''; 
-            if (listItem.classList.contains('sub-category-item')) { 
-                const currentSelectValue = financialSelect ? financialSelect.value : ""; 
-                const newFinancialSelect = document.createElement('select');
-                newFinancialSelect.name = `financial_goal_type_${categoryId}`;
-                newFinancialSelect.className = 'form-select form-select-sm financial-type-select me-2 existing-financial-type-select';
-                newFinancialSelect.innerHTML = `
-                    <option value="" ${currentSelectValue === "" ? "selected" : ""}>Unset</option>
-                    <option value="Need" ${currentSelectValue === "Need" ? "selected" : ""}>Need</option>
-                    <option value="Want" ${currentSelectValue === "Want" ? "selected" : ""}>Want</option>
-                    <option value="Saving" ${currentSelectValue === "Saving" ? "selected" : ""}>Saving</option>
-                `;
-                actionContainer.appendChild(newFinancialSelect);
-            }
-            actionContainer.appendChild(originalDeleteButton);
-            originalDeleteButton.addEventListener('click', handleMarkExistingForDeletion);
-        }
-        
-        function clientSideAddMainCategory() { 
-            const nameInput = document.getElementById('newMainCategoryNameInput');
-            const name = nameInput.value.trim();
-            if (!name) { displayCategoryModalAlert('Main category name cannot be empty.', 'warning'); return; }
-            if (pendingNewMainCategories.some(cat => cat.name.toLowerCase() === name.toLowerCase()) || 
-                Array.from(document.querySelectorAll('#mainCategoryListUl > .main-category-item')).some(item => item.dataset.categoryName && item.dataset.categoryName.toLowerCase() === name.toLowerCase() && !item.dataset.tempId && !item.classList.contains('marked-for-deletion')) ) {
-                displayCategoryModalAlert('Main category name already exists or is pending.', 'warning'); return;
-            }
-            const tempId = `temp_main_${tempCategoryIdCounter++}`;
-            pendingNewMainCategories.push({ temp_id: tempId, name: name });
-            const mainListUl = document.getElementById('mainCategoryListUl') || createMainCategoryListUl();
-            const listItem = document.createElement('li');
-            listItem.className = 'list-group-item main-category-item d-flex justify-content-between align-items-center pending-category';
-            listItem.dataset.tempId = tempId; listItem.dataset.categoryName = name; listItem.dataset.isPending = "true";
-            listItem.innerHTML = `<span>${name} (New)</span><div class="d-flex align-items-center action-buttons-container"><button type="button" class="btn btn-outline-warning btn-sm pending-delete-btn" data-temp-id="${tempId}" data-type="main">&times; Remove</button></div>`;
-            mainListUl.appendChild(listItem);
-            attachPendingDeleteListener(listItem.querySelector('.pending-delete-btn'));
-            const parentSelect = document.getElementById('newSubCategoryParentSelect');
-            if (parentSelect) {
-                const option = document.createElement('option'); option.value = tempId; option.textContent = name + " (New)"; parentSelect.appendChild(option);
-            }
-            nameInput.value = ''; document.getElementById('noCategoriesDefinedMsg')?.remove();
-            clearCategoryModalAlerts();
-        }
-        function clientSideAddSubCategory() { 
-            const nameInput = document.getElementById('newSubCategoryNameInput');
-            const parentSelect = document.getElementById('newSubCategoryParentSelect');
-            const name = nameInput.value.trim();
-            const parentIdOrTempId = parentSelect.value;
-            const parentName = parentSelect.options[parentSelect.selectedIndex]?.textContent.replace(" (New)","") || "Unknown Parent";
-            if (!name) { displayCategoryModalAlert('Subcategory name cannot be empty.', 'warning'); return; }
-            if (!parentIdOrTempId) { displayCategoryModalAlert('Parent category must be selected.', 'warning'); return; }
-            const tempId = `temp_sub_${tempCategoryIdCounter++}`;
-            
-            let parentLi = document.querySelector(`#mainCategoryListUl > .main-category-item[data-category-id="${parentIdOrTempId}"]`) || document.querySelector(`#mainCategoryListUl > .main-category-item[data-temp-id="${parentIdOrTempId}"]`);
-            if (!parentLi) { displayCategoryModalAlert('Parent category element not found in list.', 'danger'); return; }
-            let subListUl = parentLi.nextElementSibling;
-            if (!subListUl || !subListUl.matches('ul.list-group-flush')) {
-                subListUl = document.createElement('ul'); subListUl.className = 'list-group list-group-flush ms-3'; 
-                subListUl.dataset.parentIdOrTempId = parentIdOrTempId; parentLi.insertAdjacentElement('afterend', subListUl);
-            }
-            if (Array.from(subListUl.children).some(item => item.dataset.categoryName && item.dataset.categoryName.toLowerCase() === name.toLowerCase() && !item.classList.contains('marked-for-deletion'))) {
-                displayCategoryModalAlert(`Subcategory "${name}" already exists or is pending under "${parentName}".`, 'warning'); return;
-            }
-            pendingNewSubCategories.push({ temp_id: tempId, name: name, parent_id_or_temp_id: parentIdOrTempId, parent_name_for_display: parentName });
-            const listItem = document.createElement('li');
-            listItem.className = 'list-group-item sub-category-item d-flex justify-content-between align-items-center pending-category';
-            listItem.dataset.tempId = tempId; listItem.dataset.categoryName = name; listItem.dataset.isPending = "true";
-            listItem.innerHTML = `<small>${name} (New)</small><div class="d-flex align-items-center action-buttons-container"><select name="financial_goal_type_${tempId}" class="form-select form-select-sm financial-type-select me-2 pending-financial-type-select"><option value="" selected>Unset</option><option value="Need">Need</option><option value="Want">Want</option><option value="Saving">Saving</option></select><button type="button" class="btn btn-outline-warning btn-sm pending-delete-btn" data-temp-id="${tempId}" data-type="sub">&times; Remove</button></div>`;
-            subListUl.appendChild(listItem);
-            attachPendingDeleteListener(listItem.querySelector('.pending-delete-btn'));
-            nameInput.value = ''; parentSelect.value = '';
-            clearCategoryModalAlerts();
-        }
-        function attachPendingDeleteListener(button) { 
-            button.addEventListener('click', function() {
-                const tempId = this.dataset.tempId; const type = this.dataset.type;
-                if (type === 'main') {
-                    pendingNewMainCategories = pendingNewMainCategories.filter(cat => cat.temp_id !== tempId);
-                    pendingNewSubCategories = pendingNewSubCategories.filter(sub => sub.parent_id_or_temp_id !== tempId);
-                    const parentSelect = document.getElementById('newSubCategoryParentSelect');
-                    if(parentSelect){ const optToRemove = parentSelect.querySelector(`option[value="${tempId}"]`); if(optToRemove) optToRemove.remove(); }
-                    const mainLi = document.querySelector(`.main-category-item[data-temp-id="${tempId}"]`);
-                    const subUl = mainLi?.nextElementSibling;
-                    if (subUl && subUl.matches('ul') && subUl.dataset.parentIdOrTempId === tempId) { subUl.remove(); }
-                } else if (type === 'sub') {
-                    pendingNewSubCategories = pendingNewSubCategories.filter(cat => cat.temp_id !== tempId);
-                }
-                this.closest('li').remove();
-            });
-        }
-        function createMainCategoryListUl() { 
-            const container = document.getElementById('categoryListContainer');
-            document.getElementById('noCategoriesDefinedMsg')?.remove();
-            const ul = document.createElement('ul'); ul.className = 'list-group'; ul.id = 'mainCategoryListUl';
-            container.appendChild(ul); return ul;
-        }
-        
-        function displayCategoryModalAlert(message, type = 'danger') {
-            const alertContainer = document.getElementById('category-modal-alerts');
-            if (alertContainer) {
-                const alertDiv = document.createElement('div');
-                alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-                alertDiv.role = 'alert';
-                alertDiv.innerHTML = `
-                    ${message}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                `;
-                alertContainer.innerHTML = ''; 
-                alertContainer.appendChild(alertDiv);
-            } else {
-                alert(message); 
-            }
-        }
-        function clearCategoryModalAlerts() {
-            const alertContainer = document.getElementById('category-modal-alerts');
-            if (alertContainer) alertContainer.innerHTML = '';
-        }
-
-        async function saveAllCategoryChanges() { 
-            clearCategoryModalAlerts();
-            const financialTypeUpdates = [];
-            document.querySelectorAll('.existing-financial-type-select').forEach(select => {
-                const listItem = select.closest('li');
-                if (listItem && !listItem.classList.contains('marked-for-deletion')) {
-                    const categoryId = select.name.replace('financial_goal_type_', '');
-                    financialTypeUpdates.push({ id: categoryId, type: select.value });
-                }
-            });
-            const pendingSubsWithTypes = pendingNewSubCategories.map(sub => {
-                const selectElement = document.querySelector(`select[name="financial_goal_type_${sub.temp_id}"]`);
-                return { temp_id: sub.temp_id, name: sub.name, parent_id_or_temp_id: sub.parent_id_or_temp_id, financial_goal_type: selectElement ? selectElement.value : "" };
-            });
-            const payload = {
-                financial_type_updates: financialTypeUpdates,
-                new_main_categories: pendingNewMainCategories.map(m => ({ name: m.name, temp_id: m.temp_id })), 
-                new_sub_categories: pendingSubsWithTypes,
-                deletions: pendingDeletions 
-            };
-            try {
-                const response = await fetch("{{ url_for('categories.save_all_category_changes') }}", {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-                });
-                const result = await response.json();
-                if (response.ok && result.status === 'success') {
-                    const manageCategoriesModalInstance = bootstrap.Modal.getInstance(document.getElementById('manageCategoriesModal'));
-                    if(manageCategoriesModalInstance) manageCategoriesModalInstance.hide();
-                    setTimeout(() => { window.location.reload(); }, 100); 
-                } else { 
-                    displayCategoryModalAlert(result.message || 'Could not save changes. Please check data and try again.', 'danger');
-                }
-            } catch (error) { 
-                console.error('Error saving category changes:', error); 
-                displayCategoryModalAlert('An unexpected network error occurred while saving. Check console.', 'danger');
-            }
-        }
-        
-        const manageCategoriesModalElGlobal = document.getElementById('manageCategoriesModal');
-        if (manageCategoriesModalElGlobal && categoriesModalInstance) { 
-            // Event listener is already added when categoriesModalInstance is created.
-        } else if (manageCategoriesModalElGlobal && !categoriesModalInstance) {
-            // Fallback if instance wasn't created but element exists
-            categoriesModalInstance = new bootstrap.Modal(manageCategoriesModalElGlobal);
-            manageCategoriesModalElGlobal.addEventListener('shown.bs.modal', initializeManageCategoriesModal);
-        }
-    }); 
+    var flask_urls = {
+        get_planning_data: "{{ url_for('budgets.get_planning_data') }}",
+        save_all_category_changes: "{{ url_for('categories.save_all_category_changes') }}",
+        main_index: "{{ url_for('main.index') }}"
+    };
 </script>
+
+{# Load external JS files #}
+<script src="{{ url_for('static', filename='js/dashboardSetup.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/transactionModal.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/categoryModal.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/budgetModal.js') }}" defer></script>
+
 {% endblock %}
