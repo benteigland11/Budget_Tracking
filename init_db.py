@@ -1,4 +1,5 @@
 import sqlite3
+import os
 
 def parse_categories(category_list_str):
     """
@@ -18,46 +19,65 @@ def parse_categories(category_list_str):
         indentation = len(line) - len(stripped_line)
 
         if main_category_indent == -1 or indentation <= main_category_indent:
-            # This is a main category
             current_main_category = stripped_line
             main_category_indent = indentation
             parsed.append((stripped_line, None))
         else:
-            # This is a subcategory
             if current_main_category:
                 parsed.append((stripped_line, current_main_category))
             else:
-                # Should not happen if list is well-formed, treat as main if no current parent
                 print(f"Warning: Subcategory '{stripped_line}' found without a parent, treating as main.")
                 parsed.append((stripped_line, None))
-                current_main_category = stripped_line # It becomes the new context
+                current_main_category = stripped_line 
                 main_category_indent = indentation
-
-
     return parsed
 
 def initialize_database(custom_categories_str=None):
-    conn = sqlite3.connect('budget.db')
+    """
+    Initializes the database with tables for categories (hierarchical),
+    transactions, and budget goals. Adds a financial goal type to categories.
+    Ensures database is created in the 'instance' folder.
+    """
+    # --- MODIFICATION START ---
+    # Define the path to the instance folder
+    instance_folder_path = os.path.join(os.path.dirname(__file__), 'instance') # Assumes init_db.py is in project root
+
+    # Create the instance folder if it doesn't exist
+    if not os.path.exists(instance_folder_path):
+        os.makedirs(instance_folder_path)
+        print(f"Created instance folder at: {instance_folder_path}")
+
+    db_path = os.path.join(instance_folder_path, 'budget.db')
+    print(f"Initializing database at: {db_path}")
+    conn = sqlite3.connect(db_path) # Connect to the DB in the instance folder
+    # --- MODIFICATION END ---
     cursor = conn.cursor()
 
     cursor.execute("PRAGMA foreign_keys = ON;")
 
-    # Create categories table with parent_id for hierarchy
-    # parent_id: FK to itself. NULL for main categories.
-    # ON DELETE RESTRICT: Prevents deleting a parent category if subcategories exist.
-    # UNIQUE(name, parent_id): Ensures category names are unique under the same parent (or globally for main categories)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS categories (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             parent_id INTEGER,
+            financial_goal_type TEXT CHECK(financial_goal_type IN ('Need', 'Want', 'Saving', NULL)), /* Added */
             FOREIGN KEY (parent_id) REFERENCES categories (id) ON DELETE RESTRICT,
             UNIQUE (name, parent_id)
         )
     ''')
+    print("'categories' table checked/created.")
 
-    # Transactions table links to categories
-    # ON DELETE SET NULL: If a category is deleted, transactions under it become 'uncategorized'.
+    # Now that we're sure the table exists, try to add the financial_goal_type column
+    # if it doesn't already exist.
+    try:
+        cursor.execute("ALTER TABLE categories ADD COLUMN financial_goal_type TEXT CHECK(financial_goal_type IN ('Need', 'Want', 'Saving', NULL))")
+        print("Added 'financial_goal_type' column to 'categories' table.")
+    except sqlite3.OperationalError as e:
+        if "duplicate column name" in str(e).lower():
+            print("'financial_goal_type' column already exists in 'categories' table.")
+        else: # Re-raise other operational errors
+            raise e
+
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS transactions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -69,66 +89,68 @@ def initialize_database(custom_categories_str=None):
         )
     ''')
 
-    # Populate categories if the table is empty
-    cursor.execute("SELECT COUNT(*) FROM categories")
-    if cursor.fetchone()[0] == 0:
-        print("Populating categories...")
-        if custom_categories_str is None:
-            # Fallback to a minimal default if no custom list is provided during init
-            # This part is just a fallback, usually custom_categories_str will be provided.
-            default_categories_structure = [
-                ("Income", None),
-                ("Salary", "Income"),
-                ("Housing", None),
-                ("Rent/Mortgage", "Housing"),
-                ("Utilities", "Housing"),
-                ("Groceries", None),
-                ("Transportation", None),
-                ("Miscellaneous", None)
-            ]
-            categories_to_insert_tuples = default_categories_structure # Use this as is for this small example
-        else:
-            categories_to_insert_tuples = parse_categories(custom_categories_str)
+    # New table for budget goals
+    # category_id: Links to the specific category (main or sub) being budgeted.
+    # year, month: Defines the period for the budget.
+    # budgeted_amount: The expected amount for that category in that month.
+    # ON DELETE CASCADE: If a category is deleted, its budget goals are also deleted.
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS budget_goals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            category_id INTEGER NOT NULL,
+            year INTEGER NOT NULL,
+            month INTEGER NOT NULL, /* 1-12 */
+            budgeted_amount REAL NOT NULL DEFAULT 0,
+            FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE,
+            UNIQUE (category_id, year, month) 
+        )
+    ''')
+    print("'budget_goals' table checked/created.")
 
-        # Insert main categories first
-        main_categories_map = {} # To store name -> id for main categories
+
+    cursor.execute("SELECT COUNT(*) FROM categories")
+    if cursor.fetchone()[0] == 0 and custom_categories_str: # Check count again after potential ALTER
+        print("Populating categories from custom list...")
+        categories_to_insert_tuples = parse_categories(custom_categories_str)
+        main_categories_map = {}
         for name, parent_name in categories_to_insert_tuples:
             if parent_name is None:
                 try:
-                    cursor.execute("INSERT INTO categories (name, parent_id) VALUES (?, NULL)", (name,))
+                    cursor.execute("INSERT INTO categories (name, parent_id, financial_goal_type) VALUES (?, NULL, NULL)", (name,))
                     main_categories_map[name] = cursor.lastrowid
                 except sqlite3.IntegrityError:
-                    print(f"Main category '{name}' might already exist or name conflict.")
-                    # If it already exists, try to fetch its ID for subcategories
+                    print(f"Main category '{name}' might already exist.")
                     cursor.execute("SELECT id FROM categories WHERE name = ? AND parent_id IS NULL", (name,))
                     existing = cursor.fetchone()
-                    if existing:
-                        main_categories_map[name] = existing[0]
-
-
-        # Insert subcategories
+                    if existing: main_categories_map[name] = existing[0]
         for name, parent_name in categories_to_insert_tuples:
             if parent_name is not None:
                 if parent_name in main_categories_map:
                     parent_id = main_categories_map[parent_name]
                     try:
-                        cursor.execute("INSERT INTO categories (name, parent_id) VALUES (?, ?)", (name, parent_id))
+                        cursor.execute("INSERT INTO categories (name, parent_id, financial_goal_type) VALUES (?, ?, NULL)", (name, parent_id))
                     except sqlite3.IntegrityError:
-                        print(f"Subcategory '{name}' under '{parent_name}' might already exist or name conflict.")
+                        print(f"Subcategory '{name}' under '{parent_name}' might already exist.")
                 else:
-                    print(f"Warning: Parent category '{parent_name}' for subcategory '{name}' not found or not inserted. Skipping.")
-        
+                    print(f"Warning: Parent '{parent_name}' for subcategory '{name}' not found. Skipping.")
         print("Categories populated.")
     else:
-        print("Categories table already has data. Skipping population.")
+        # Need to re-fetch count if the first condition was false
+        cursor.execute("SELECT COUNT(*) FROM categories")
+        if cursor.fetchone()[0] > 0:
+            print("Categories table already has data. Default population skipped. Ensure 'financial_goal_type' is set as needed.")
+        # else: (This case is covered by the first if, or if custom_categories_str is None)
+        else:
+            print("No custom category list provided and categories table is empty. Minimal defaults might be needed or add via UI.")
+
 
     conn.commit()
     conn.close()
-    print("Database initialized with hierarchical categories structure.")
-    print("IMPORTANT: If you had a previous 'budget.db', it should have been deleted or renamed before running this.")
+    print("Database initialization complete with budget goals and financial types.")
+    print("IMPORTANT: If you had a previous 'budget.db', this script attempts to ALTER the 'categories' table.")
+    print("It's always safest to backup your DB before schema changes or start fresh if issues arise.")
 
 if __name__ == '__main__':
-    # User's provided category list
     user_category_list = """
 Housing
     Rent/Mortgage
@@ -202,7 +224,10 @@ Household Supplies
     Laundry Detergent
     TP/PT
     MISC
-General MISC
 MISC
     """
+    # To ensure the ALTER TABLE works correctly on subsequent runs if needed,
+    # and to populate if DB is fresh.
     initialize_database(custom_categories_str=user_category_list)
+    # If you want to run without populating categories if they exist:
+    # initialize_database() 

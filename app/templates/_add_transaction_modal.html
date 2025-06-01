@@ -1,0 +1,51 @@
+<div class="modal fade" id="addTransactionModal" tabindex="-1" aria-labelledby="addTransactionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addTransactionModalLabel">Add New Transaction</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" id="transactionFormInModal"> {# Action set by JS #}
+                    <input type="hidden" name="final_category_id" id="final_category_id" value="">
+                    <input type="hidden" name="transaction_id" id="transaction_id_edit" value="">
+                    <div class="mb-3">
+                        <label for="modal_amount" class="form-label">Amount</label>
+                        <input type="number" step="0.01" class="form-control" id="modal_amount" name="amount" required placeholder="e.g., 50.75">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="modal_main_category_select" class="form-label">Main Category</label>
+                            <select class="form-select" id="modal_main_category_select" name="main_category_select" required>
+                                <option value="" disabled selected>Select main category...</option>
+                                {# Options populated by JavaScript using hierarchical_categories_data_for_js #}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3 subcategory-select-wrapper" id="modal_subcategory_wrapper">
+                            <label for="modal_sub_category_select" class="form-label">Subcategory (Optional)</label>
+                            <select class="form-select" id="modal_sub_category_select" name="sub_category_select">
+                                <option value="">-- Select subcategory --</option>
+                                {# Options populated by JavaScript #}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="modal_date" class="form-label">Date</label>
+                        <input type="date" class="form-control" id="modal_date" name="date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="modal_type" class="form-label">Type</label>
+                        <select class="form-select" id="modal_type" name="type" required>
+                            <option value="expense" selected>Expense</option>
+                            <option value="income">Income</option>
+                        </select>
+                    </div>
+                    <div class="mt-4 d-flex justify-content-end">
+                        <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary" id="saveTransactionBtn">Save Transaction</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
