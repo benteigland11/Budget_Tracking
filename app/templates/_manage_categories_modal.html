@@ -5,87 +5,74 @@
                 <h5 class="modal-title" id="manageCategoriesModalLabel">Manage Categories</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body" style="max-height: 75vh; overflow-y: auto;">
-                <form action="{{ url_for('categories.update_category_financial_types_batch') }}" method="POST" id="manageCategoriesForm">
+            <div id="manageCategoriesFormContainer"> 
+                <div class="modal-body" style="max-height: 70vh; overflow-y: auto;"> 
+                    <div id="category-modal-alerts" class="mb-3"></div> {# For JS-based alerts #}
                     <div class="row">
                         <div class="col-md-5">
                             <h6 class="text-muted mt-2">Add Main Category</h6>
-                            {# This form needs to be separate or submitted via JS to not interfere with the batch update form #}
-                            <form action="{{ url_for('categories.add_main_category') }}" method="POST" class="mb-3" id="addMainCategoryForm_standalone">
-                                <div class="input-group">
-                                    <input type="text" class="form-control" name="main_category_name" placeholder="New main category name" required>
-                                    <button class="btn btn-success" type="submit">Add Main</button>
-                                </div>
-                            </form>
+                            <div class="input-group mb-3">
+                                <input type="text" class="form-control" id="newMainCategoryNameInput" placeholder="New main category name">
+                                <button class="btn btn-success" type="button" id="clientAddMainCategoryBtn">Add Main</button>
+                            </div>
                             <hr>
                             <h6 class="text-muted">Add Subcategory</h6>
-                            <form action="{{ url_for('categories.add_sub_category') }}" method="POST" class="mb-3" id="addSubCategoryForm_standalone">
-                                <div class="mb-2">
-                                    <label for="manage_parent_category_id" class="form-label small">Parent Main Category:</label>
-                                    <select name="parent_category_id" id="manage_parent_category_id" class="form-select form-select-sm" required>
-                                        <option value="" disabled selected>Select parent...</option>
-                                        {% for main_cat_opt in main_categories_for_sub_add %}
-                                        <option value="{{ main_cat_opt.id }}">{{ main_cat_opt.name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="input-group">
-                                    <input type="text" class="form-control" name="sub_category_name" placeholder="New subcategory name" required>
-                                    <button class="btn btn-info" type="submit">Add Sub</button>
-                                </div>
-                            </form>
+                            <div class="mb-2">
+                                <label for="newSubCategoryParentSelect" class="form-label small">Parent Main Category:</label>
+                                <select id="newSubCategoryParentSelect" class="form-select form-select-sm">
+                                    <option value="" disabled selected>Select parent...</option>
+                                    {% for main_cat_opt in main_categories_for_sub_add %}
+                                    <option value="{{ main_cat_opt.id }}">{{ main_cat_opt.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="input-group mb-3">
+                                <input type="text" class="form-control" id="newSubCategoryNameInput" placeholder="New subcategory name">
+                                <button class="btn btn-info" type="button" id="clientAddSubCategoryBtn">Add Sub</button>
+                            </div>
                         </div>
                         <div class="col-md-7">
-                            <h6 class="text-muted mt-2">Existing Categories: (Set Financial Type)</h6>
-                            <div class="category-list">
+                            <h6 class="text-muted mt-2">Existing & Pending Categories: (Set Financial Type for Subcategories)</h6>
+                            <div class="category-list" id="categoryListContainer">
                             {% if categories_for_management %}
-                                <ul class="list-group">
+                                <ul class="list-group" id="mainCategoryListUl">
                                 {% for main_cat_manage in categories_for_management %}
-                                    <li class="list-group-item main-category-item d-flex justify-content-between align-items-center">
+                                    <li class="list-group-item main-category-item d-flex justify-content-between align-items-center" data-category-id="{{ main_cat_manage.id }}" data-category-name="{{ main_cat_manage.name|e }}" data-is-pending="false">
                                         <span>{{ main_cat_manage.name }}</span>
-                                        <div class="d-flex align-items-center">
-                                            <select name="financial_goal_type_{{ main_cat_manage.id }}" class="form-select form-select-sm financial-type-select me-2">
-                                                <option value="" {% if not main_cat_manage.financial_goal_type %}selected{% endif %}>Unset</option>
-                                                <option value="Need" {% if main_cat_manage.financial_goal_type == 'Need' %}selected{% endif %}>Need</option>
-                                                <option value="Want" {% if main_cat_manage.financial_goal_type == 'Want' %}selected{% endif %}>Want</option>
-                                                <option value="Saving" {% if main_cat_manage.financial_goal_type == 'Saving' %}selected{% endif %}>Saving</option>
-                                            </select>
-                                            {# Delete button needs its own form to POST to a different endpoint #}
-                                            <form action="{{ url_for('categories.delete_category', category_id=main_cat_manage.id) }}" method="POST" style="display: inline;" onsubmit="return confirm('Delete MAIN category ' + {{ main_cat_manage.name|tojson|safe }} + '? Subcategories must be deleted first.');">
-                                                <button type="submit" class="btn btn-danger btn-sm delete-btn">&times;</button>
-                                            </form>
+                                        <div class="d-flex align-items-center action-buttons-container">
+                                            {# MODIFICATION: Changed to button type for JS handling #}
+                                            <button type="button" class="btn btn-danger btn-sm delete-existing-category-btn" data-category-id="{{ main_cat_manage.id }}" data-category-name="{{ main_cat_manage.name|e }}" title="Mark to delete main category {{ main_cat_manage.name|e }}">&times;</button>
                                         </div>
                                     </li>
                                     {% if main_cat_manage.sub_categories %}
-                                        <ul class="list-group list-group-flush">
+                                        <ul class="list-group list-group-flush ms-3" data-parent-id="{{ main_cat_manage.id }}">
                                         {% for sub_cat_manage in main_cat_manage.sub_categories %}
-                                            <li class="list-group-item sub-category-item d-flex justify-content-between align-items-center">
+                                            <li class="list-group-item sub-category-item d-flex justify-content-between align-items-center" data-category-id="{{ sub_cat_manage.id }}" data-category-name="{{ sub_cat_manage.name|e }}" data-is-pending="false">
                                                 <small>{{ sub_cat_manage.name }}</small>
-                                                <div class="d-flex align-items-center">
-                                                     <select name="financial_goal_type_{{ sub_cat_manage.id }}" class="form-select form-select-sm financial-type-select me-2">
+                                                <div class="d-flex align-items-center action-buttons-container">
+                                                     <select name="financial_goal_type_{{ sub_cat_manage.id }}" class="form-select form-select-sm financial-type-select me-2 existing-financial-type-select">
                                                         <option value="" {% if not sub_cat_manage.financial_goal_type %}selected{% endif %}>Unset</option>
                                                         <option value="Need" {% if sub_cat_manage.financial_goal_type == 'Need' %}selected{% endif %}>Need</option>
                                                         <option value="Want" {% if sub_cat_manage.financial_goal_type == 'Want' %}selected{% endif %}>Want</option>
                                                         <option value="Saving" {% if sub_cat_manage.financial_goal_type == 'Saving' %}selected{% endif %}>Saving</option>
                                                     </select>
-                                                    <form action="{{ url_for('categories.delete_category', category_id=sub_cat_manage.id) }}" method="POST" style="display: inline;" onsubmit="return confirm('Delete subcategory ' + {{ sub_cat_manage.name|tojson|safe }} + '?');">
-                                                        <button type="submit" class="btn btn-outline-danger btn-sm delete-btn">&times;</button>
-                                                    </form>
+                                                    {# MODIFICATION: Changed to button type for JS handling #}
+                                                    <button type="button" class="btn btn-outline-danger btn-sm delete-existing-category-btn" data-category-id="{{ sub_cat_manage.id }}" data-category-name="{{ sub_cat_manage.name|e }}" title="Mark to delete subcategory {{ sub_cat_manage.name|e }}">&times;</button>
                                                 </div>
                                             </li>
                                         {% endfor %}</ul>
                                     {% endif %}
                                 {% endfor %}</ul>
-                            {% else %}<p class="text-muted">No categories defined.</p>{% endif %}
+                            {% else %}<p class="text-muted" id="noCategoriesDefinedMsg">No categories defined.</p>{% endif %}
                             </div>
                         </div>
                     </div>
-                    <div class="mt-3 d-flex justify-content-end">
-                        <button type="submit" class="btn btn-primary">Save Financial Types</button>
-                    </div>
-                </form> 
-            </div>
-            <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="saveAllCategoryChangesBtn">Save All Changes</button>
+                </div>
+            </div> 
         </div>
     </div>
 </div>

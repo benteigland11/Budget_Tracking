@@ -4,7 +4,7 @@
 
 {% block head_styles %}
 <style>
-    /* Page-specific styles from the original index.html */
+    /* Page-specific styles */
     .table-hover tbody tr:hover { background-color: #e9ecef; }
     .chart-container { position: relative; margin: 0.5rem auto; height: 300px; width: 100%; }
     .summary-stats .card { text-align: center; margin-bottom: 1rem; }
@@ -13,7 +13,11 @@
     .category-list .list-group-item { padding-left: 0; border-radius: 0.375rem; border:none; }
     .category-list .main-category-item { font-weight: bold; background-color: #e9ecef; padding: 0.5rem 0.75rem; margin-top: 0.5rem; border-radius: 0.375rem;}
     .category-list .sub-category-item { padding-left: 1.5rem; }
-    .delete-btn, .edit-btn { font-size: 0.8em; padding: 0.2rem 0.5rem; margin-left: 0.25rem; }
+    .delete-btn, .edit-btn, .pending-delete-btn, .delete-existing-category-btn, .undo-delete-btn { 
+        font-size: 0.8em; 
+        padding: 0.2rem 0.5rem; 
+        margin-left: 0.25rem; 
+    }
     .action-buttons { margin-bottom: 1.5rem; }
     .subcategory-select-wrapper { display: none; }
     .transaction-actions .btn { margin-left: 5px;}
@@ -24,6 +28,28 @@
     #backToMainCategoriesChartBtn { display: none; }
     .budget-category-header { font-weight: bold; padding-top: 0.5rem; padding-bottom: 0.25rem; }
     .budget-subcategory-row td { padding-left: 2rem !important; }
+    .pending-category { font-style: italic; color: #0d6efd; }
+    .period-type-selector .btn { font-size: 0.85rem; padding: 0.375rem 0.75rem;}
+    .marked-for-deletion { text-decoration: line-through; opacity: 0.6; }
+    .marked-for-deletion .form-select { 
+        pointer-events: none;
+        background-color: #e9ecef; 
+    }
+    .period-type-selector .btn-check:checked + .btn-outline-light, 
+    .period-type-selector .btn-check:checked + .btn-light {
+        background-color: #f8f9fa; 
+        color: #007bff; 
+        border-color: #f8f9fa;
+    }
+    .period-type-selector .btn-outline-light {
+        color: #f8f9fa; 
+        border-color: #f8f9fa; 
+    }
+    .period-type-selector .btn-outline-light:hover {
+        background-color: rgba(255, 255, 255, 0.15); 
+        color: #f8f9fa;
+    }
+    #category-modal-alerts .alert { font-size: 0.9rem; padding: 0.5rem 1rem;}
 </style>
 {% endblock %}
 
@@ -35,14 +61,14 @@
             </button>
         </div>
         <div class="col-md-auto mb-2 mb-md-0">
-            <button type="button" class="btn btn-info btn-lg" data-bs-toggle="modal" data-bs-target="#budgetPlanningModal">
-                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-calendar2-check-fill me-2" viewBox="0 0 16 16"><path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5m9.954 3H2.545c-.3 0-.545.224-.545.5v1c0 .276.244.5.545.5h10.91c.3 0 .545-.224.545-.5v-1c0-.276-.244-.5-.545-.5m-2.6 5.854a.5.5 0 0 0-.708-.708L7.5 10.793 6.354 9.646a.5.5 0 1 0-.708.708l1.5 1.5a.5.5 0 0 0 .708 0z"/></svg> Plan Budget
-            </button>
+            <a href="{{ url_for('main.index', budget_year=budget_planning_year, budget_month=budget_planning_month, open_budget_planner='true') }}" class="btn btn-info btn-lg" id="openBudgetPlannerBtn">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-calendar2-check-fill me-2" viewBox="0 0 16 16"><path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5m9.954 3H2.545c-.3 0-.545.224-.545.5v1c0 .276.244.5.545.5h10.91c.3 0 .545-.224-.545-.5v-1c0-.276-.244-.5-.545-.5m-2.6 5.854a.5.5 0 0 0-.708-.708L7.5 10.793 6.354 9.646a.5.5 0 1 0-.708.708l1.5 1.5a.5.5 0 0 0 .708 0z"/></svg> Plan Budget
+            </a>
         </div>
         <div class="col-md-auto">
-            <button type="button" class="btn btn-secondary btn-lg" data-bs-toggle="modal" data-bs-target="#manageCategoriesModal">
+             <a href="{{ url_for('main.index', open_manage_categories='true') }}" class="btn btn-secondary btn-lg" id="openManageCategoriesBtn">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-tags-fill me-2" viewBox="0 0 16 16"><path d="M2 2a1 1 0 0 1 1-1h4.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 2 6.586zm3.5 4a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3"/><path d="M1.293 7.793A1 1 0 0 1 1 7.086V2a1 1 0 0 0-1 1v4.586a1 1 0 0 0 .293.707l7 7a1 1 0 0 0 1.414 0l.043-.043-4.586-4.586z"/></svg> Manage Categories
-            </button>
+            </a>
         </div>
     </div>
     
@@ -57,16 +83,31 @@
     <section id="analyticsSection" class="mb-5">
         <div class="card">
             <div class="card-header">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h2 class="h5">Monthly Financial Analytics</h2>
-                    <form method="GET" action="{{ url_for('main.index') }}" id="analyticsPeriodForm" class="d-flex align-items-center">
-                         {% if focused_main_category_id %} <input type="hidden" name="main_cat_focus" value="{{ focused_main_category_id }}"> {% endif %}
-                        <select name="month" class="form-select form-select-sm me-2" style="width: auto;" onchange="this.form.submit()">
-                            {% for m in range(1, 13) %}<option value="{{ m }}" {% if m == view_month %}selected{% endif %}>{{ m | month_name }}</option>{% endfor %}
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <h2 class="h5 mb-2 mb-md-0">Financial Analytics</h2>
+                    <form method="GET" action="{{ url_for('main.index') }}" id="analyticsPeriodForm" class="d-flex align-items-center flex-wrap">
+                        {% if focused_main_category_id %} 
+                            <input type="hidden" name="main_cat_focus" value="{{ focused_main_category_id }}"> 
+                        {% endif %}
+                        
+                        <div class="btn-group btn-group-sm me-2 period-type-selector mb-2 mb-md-0" role="group" aria-label="Period type">
+                            <input type="radio" class="btn-check" name="period_type" id="period_monthly" value="monthly" {% if view_period_type == 'monthly' %}checked{% endif %} autocomplete="off" onchange="this.form.submit()">
+                            <label class="btn {% if view_period_type == 'monthly' %}btn-light{% else %}btn-outline-light{% endif %}" for="period_monthly">Monthly</label>
+                            
+                            <input type="radio" class="btn-check" name="period_type" id="period_yearly" value="yearly" {% if view_period_type == 'yearly' %}checked{% endif %} autocomplete="off" onchange="this.form.submit()">
+                            <label class="btn {% if view_period_type == 'yearly' %}btn-light{% else %}btn-outline-light{% endif %}" for="period_yearly">Yearly</label>
+                        </div>
+
+                        <select name="month" id="analyticsMonthSelect" class="form-select form-select-sm me-2 mb-2 mb-md-0" style="width: auto; {% if view_period_type == 'yearly' %}display: none;{% endif %}" onchange="this.form.submit()">
+                            {% for m_opt in range(1, 13) %}
+                            <option value="{{ m_opt }}" {% if view_month and m_opt == view_month %}selected{% endif %}>{{ m_opt | month_name }}</option>
+                            {% endfor %}
                         </select>
-                        <select name="year" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
-                            {% for y in all_years_with_data %} <option value="{{ y }}" {% if y == view_year|string %}selected{% endif %}>{{ y }}</option>{% endfor %}
-                            {% if view_year|string not in all_years_with_data and current_year|string not in all_years_with_data %}<option value="{{ current_year }}" {% if current_year == view_year %}selected{% endif %}>{{ current_year }}</option>{% endif %}
+                        
+                        <select name="year" class="form-select form-select-sm mb-2 mb-md-0" style="width: auto;" onchange="this.form.submit()">
+                            {% for y_opt in all_years_for_dropdowns %} 
+                            <option value="{{ y_opt }}" {% if y_opt == view_year|string %}selected{% endif %}>{{ y_opt }}</option>
+                            {% endfor %}
                         </select>
                     </form>
                 </div>
@@ -76,7 +117,11 @@
                      <button id="backToMainCategoriesChartBtn" class="btn btn-sm btn-outline-secondary mb-2" style="display: none;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-left-circle" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1 8a7 7 0 1 0 14 0A7 7 0 0 0 1 8m15 0A8 8 0 1 1 0 8a8 8 0 0 1 16 0m-4.5-.5a.5.5 0 0 1 0 1H5.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L5.707 7.5z"/></svg> Back to Main Categories
                     </button>
-                    <h6 id="expectedVsActualChartTitle" class="text-muted">Budget vs. Actual Expenses for {{ view_month | month_name }} {{ view_year }} - {{ current_chart_title_suffix }}</h6>
+                    <h6 id="expectedVsActualChartTitle" class="text-muted">
+                        Budget vs. Actual Expenses for 
+                        {% if view_period_type == 'monthly' %}{{ view_month | month_name }} {% endif %}
+                        {{ view_year }} - {{ current_chart_title_suffix }}
+                    </h6>
                 </div>
                 <div class="row"><div class="col-lg-12 mb-4"><div class="chart-container" style="height: 350px;"><canvas id="expectedVsActualChart"></canvas></div></div></div>
                 <div class="row mb-4">
@@ -120,7 +165,7 @@
                             <button type="button" class="btn btn-sm btn-outline-primary edit-btn" data-bs-toggle="modal" data-bs-target="#addTransactionModal" data-id="{{ t_item.id }}" data-amount="{{ t_item.amount }}" data-date="{{ t_item.date }}" data-type="{{ t_item.type }}" data-category_id="{{ t_item.category_id if t_item.category_id is not none else '' }}" data-main_category_for_edit="{{ t_item.main_category_for_edit if t_item.main_category_for_edit is not none else '' }}">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16"><path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.813z"/><path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5z"/></svg>
                             </button>
-                            <form action="{{ url_for('transactions.delete_transaction', transaction_id=t_item.id) }}" method="POST" style="display: inline;" onsubmit="return confirm('Delete this transaction?');">
+                            <form action="{{ url_for('transactions.delete_transaction', transaction_id=t_item.id, year=view_year, month=view_month if view_month else '', main_cat_focus=focused_main_category_id if focused_main_category_id else '', period_type=view_period_type) }}" method="POST" style="display: inline;" onsubmit="return confirm('Delete this transaction?');">
                                 <button type="submit" class="btn btn-sm btn-outline-danger delete-btn"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-trash3-fill" viewBox="0 0 16 16"><path d="M11 1.5v1h3.5a.5.5 0 0 1 0 1h-.538l-.853 10.66A2 2 0 0 1 11.115 16h-6.23a2 2 0 0 1-1.994-1.84L2.038 3.5H1.5a.5.5 0 0 1 0-1H5v-1A1.5 1.5 0 0 1 6.5 0h3A1.5 1.5 0 0 1 11 1.5m-5 0v1h4v-1a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5M4.5 5.024l.5 8.5a.5.5 0 1 0 .998-.06l-.5-8.5a.5.5 0 1 0-.998.06m3.5-.05l.5 8.5a.5.5 0 1 0 .998-.06l-.5-8.5a.5.5 0 1 0-.998.06m3.5.056l-.5 8.5a.5.5 0 1 0 .998.06l.5-8.5a.5.5 0 1 0-.998-.06Z"/></svg></button>
                             </form>
                         </td>
@@ -141,39 +186,126 @@
 
 {% block scripts %}
 <script>
-    const hierarchicalDataFromFlask = {{ hierarchical_categories_data_for_js|tojson|safe }};
-    console.log("Data for JS (hierarchical_categories_data_for_js):", hierarchicalDataFromFlask);
-
-    const mainCategoriesForTransactionModal = hierarchicalDataFromFlask.main_categories || [];
-    const subCategoriesMapForTransactionModal = hierarchicalDataFromFlask.sub_categories_map || {};
-    
-    let expectedVsActualChartInstance = null; 
+    var hierarchicalDataFromFlask = {{ hierarchical_categories_data_for_js|tojson|safe }};
 
     document.addEventListener('DOMContentLoaded', () => {
-        const addTransactionModalEl = document.getElementById('addTransactionModal');
-        const transactionForm = document.getElementById('transactionFormInModal'); 
-        const modalTitle = document.getElementById('addTransactionModalLabel');
-        const saveTransactionBtn = document.getElementById('saveTransactionBtn');
+        // Initialize Bootstrap Modal instances once
+        const budgetModalEl = document.getElementById('budgetPlanningModal');
+        let budgetModalInstance = budgetModalEl ? new bootstrap.Modal(budgetModalEl) : null;
+
+        const categoriesModalEl = document.getElementById('manageCategoriesModal');
+        let categoriesModalInstance = null;
+        if (categoriesModalEl) {
+            categoriesModalInstance = new bootstrap.Modal(categoriesModalEl);
+            categoriesModalEl.addEventListener('shown.bs.modal', initializeManageCategoriesModal);
+        }
         
+        const addTransactionModalEl = document.getElementById('addTransactionModal');
+        if (addTransactionModalEl) {
+            addTransactionModalEl.addEventListener('hidden.bs.modal', resetTransactionForm);
+        }
+
+        // --- Common Modal/Page Load Logic for URL parameters ---
+        const urlParams = new URLSearchParams(window.location.search);
+        let paramsModifiedForHistory = false;
+
+        if (urlParams.get('open_budget_planner') === 'true') { 
+            if (budgetModalInstance) {
+                budgetModalInstance.show();
+            }
+            urlParams.delete('open_budget_planner');
+            paramsModifiedForHistory = true;
+        }
+        if (urlParams.get('open_manage_categories') === 'true') {
+            if (categoriesModalInstance) {
+                categoriesModalInstance.show();
+            }
+            urlParams.delete('open_manage_categories');
+            paramsModifiedForHistory = true;
+        }
+        
+        if (paramsModifiedForHistory) {
+            const newParamsString = urlParams.toString();
+            const newRelativePathQuery = window.location.pathname + (newParamsString ? '?' + newParamsString : '');
+            window.history.replaceState({}, document.title, newRelativePathQuery);
+        }
+
+        // --- Budget Planning Modal: Auto-reload on period change ---
+        const budgetMonthSelectModal = document.getElementById('budget_month_select_modal');
+        const budgetYearSelectModal = document.getElementById('budget_year_select_modal');
+
+        function handleBudgetPeriodChange() {
+            const selectedMonth = budgetMonthSelectModal.value;
+            const selectedYear = budgetYearSelectModal.value;
+            
+            let targetUrl = "{{ url_for('main.index') }}"; 
+            const paramsToKeep = new URLSearchParams(); 
+
+            paramsToKeep.append('budget_month', selectedMonth);
+            paramsToKeep.append('budget_year', selectedYear);
+            paramsToKeep.append('open_budget_planner', 'true');
+
+            const currentAnalyticsParams = new URLSearchParams(window.location.search);
+            if(currentAnalyticsParams.has('period_type')) paramsToKeep.append('period_type', currentAnalyticsParams.get('period_type'));
+            
+            // Only add main analytics year/month if they are NOT the ones being set by budget_ controls
+            if(currentAnalyticsParams.has('year') && currentAnalyticsParams.get('year') !== selectedYear) {
+                 // This logic might be too complex or lead to conflicting params.
+                 // For now, let's prioritize budget_year and budget_month for the reload.
+                 // If analytics view needs to be preserved independently, it's more complex.
+            }
+             if(currentAnalyticsParams.has('main_cat_focus')) paramsToKeep.append('main_cat_focus', currentAnalyticsParams.get('main_cat_focus'));
+
+            targetUrl += '?' + paramsToKeep.toString();
+            
+            console.log("Budget modal period change. Redirecting to:", targetUrl);
+            window.location.href = targetUrl;
+        }
+
+        if (budgetMonthSelectModal) {
+            budgetMonthSelectModal.addEventListener('change', handleBudgetPeriodChange);
+        }
+        if (budgetYearSelectModal) {
+            budgetYearSelectModal.addEventListener('change', handleBudgetPeriodChange);
+        }
+        // --- End Budget Planning Modal Logic ---
+
+
+        // --- Add/Edit Transaction Modal Logic ---
+        const transactionForm = document.getElementById('transactionFormInModal'); 
+        const modalTransactionTitle = document.getElementById('addTransactionModalLabel');
         const modalAmountInput = document.getElementById('modal_amount');
         const modalDateInput = document.getElementById('modal_date');
         const modalTypeSelect = document.getElementById('modal_type');
-        const mainCategorySelect = document.getElementById('modal_main_category_select');
-        const subCategorySelect = document.getElementById('modal_sub_category_select');
-        const subCategoryWrapper = document.getElementById('modal_subcategory_wrapper');
-        const finalCategoryIdInput = document.getElementById('final_category_id');
+        const mainCategorySelectForTransaction = document.getElementById('modal_main_category_select');
+        const subCategorySelectForTransaction = document.getElementById('modal_sub_category_select');
+        const subCategoryWrapperForTransaction = document.getElementById('modal_subcategory_wrapper');
+        const finalCategoryIdInputForTransaction = document.getElementById('final_category_id');
         const transactionIdEditInput = document.getElementById('transaction_id_edit');
 
         function resetTransactionForm() {
             if (transactionForm) transactionForm.reset(); 
             if (transactionIdEditInput) transactionIdEditInput.value = ''; 
-            if (modalTitle) modalTitle.textContent = 'Add New Transaction';
-            if (saveTransactionBtn) saveTransactionBtn.textContent = 'Save Transaction';
-            if (transactionForm) transactionForm.action = "{{ url_for('transactions.add_transaction') }}";
-            if (mainCategorySelect) mainCategorySelect.value = "";
-            if (subCategorySelect) subCategorySelect.innerHTML = '<option value="">-- Select subcategory (optional) --</option>';
-            if (subCategoryWrapper) subCategoryWrapper.style.display = 'none';
-            if (finalCategoryIdInput) finalCategoryIdInput.value = "";
+            if (modalTransactionTitle) modalTransactionTitle.textContent = 'Add New Transaction';
+            const saveBtnInFooter = document.querySelector('#addTransactionModal .modal-footer button[type="submit"]');
+            if (saveBtnInFooter) saveBtnInFooter.textContent = 'Save Transaction';
+
+            if (transactionForm) {
+                const currentUrlParamsForTx = new URLSearchParams(window.location.search);
+                let actionUrl = "{{ url_for('transactions.add_transaction') }}";
+                const paramsForTxRedirect = new URLSearchParams();
+                paramsForTxRedirect.append('year', currentUrlParamsForTx.get('year') || '{{ view_year }}');
+                paramsForTxRedirect.append('month', currentUrlParamsForTx.get('month') || ('{{ view_month }}' === 'None' ? '' : '{{ view_month }}'));
+                paramsForTxRedirect.append('period_type', currentUrlParamsForTx.get('period_type') || '{{ view_period_type }}');
+                if (currentUrlParamsForTx.get('main_cat_focus')) {
+                    paramsForTxRedirect.append('main_cat_focus', currentUrlParamsForTx.get('main_cat_focus'));
+                }
+                transactionForm.action = actionUrl + '?' + paramsForTxRedirect.toString();
+            }
+            if (mainCategorySelectForTransaction) mainCategorySelectForTransaction.value = "";
+            if (subCategorySelectForTransaction) subCategorySelectForTransaction.innerHTML = '<option value="">-- Select subcategory (optional) --</option>';
+            if (subCategoryWrapperForTransaction) subCategoryWrapperForTransaction.style.display = 'none';
+            if (finalCategoryIdInputForTransaction) finalCategoryIdInputForTransaction.value = "";
             if (modalDateInput) {
                 const today = new Date();
                 modalDateInput.value = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
@@ -181,25 +313,29 @@
             if(modalTypeSelect) modalTypeSelect.value = 'expense';
         } 
 
-        if (mainCategorySelect) {
-             if (mainCategoriesForTransactionModal.length === 0) {
-                console.warn("No main categories found to populate the Add/Edit Transaction modal dropdown.");
-            }
-            while (mainCategorySelect.options.length > 1) {
-                mainCategorySelect.remove(1);
-            }
-            mainCategoriesForTransactionModal.forEach(mainCat => {
+        if (mainCategorySelectForTransaction) {
+            const mainCategoriesForTxModal = hierarchicalDataFromFlask.main_categories || [];
+            mainCategorySelectForTransaction.innerHTML = '<option value="" disabled selected>Select main category...</option>';
+            mainCategoriesForTxModal.forEach(mainCat => {
                 const option = document.createElement('option');
                 option.value = mainCat.id;
                 option.textContent = mainCat.name;
-                mainCategorySelect.appendChild(option);
+                mainCategorySelectForTransaction.appendChild(option);
+            });
+
+            mainCategorySelectForTransaction.addEventListener('change', function() {
+                if (finalCategoryIdInputForTransaction) finalCategoryIdInputForTransaction.value = this.value; 
+                populateSubcategoriesForTransaction(this.value);
+                if (subCategorySelectForTransaction) subCategorySelectForTransaction.value = ""; 
             });
         } 
         
-        function populateSubcategories(selectedMainId, selectedSubId = null) {
-            if (!subCategorySelect || !subCategoryWrapper) return;
-            subCategorySelect.innerHTML = '<option value="">-- Select subcategory (optional) --</option>';
-            const subs = subCategoriesMapForTransactionModal[selectedMainId] || [];
+        function populateSubcategoriesForTransaction(selectedMainId, selectedSubId = null) {
+            if (!subCategorySelectForTransaction || !subCategoryWrapperForTransaction) return;
+            const subCategoriesMapForTxModal = hierarchicalDataFromFlask.sub_categories_map || {};
+            subCategorySelectForTransaction.innerHTML = '<option value="">-- Select subcategory (optional) --</option>';
+            const subs = subCategoriesMapForTxModal[selectedMainId] || [];
+
             if (subs.length > 0) {
                 subs.forEach(subCat => {
                     const option = document.createElement('option');
@@ -208,67 +344,75 @@
                     if (selectedSubId && subCat.id.toString() === selectedSubId.toString()) {
                         option.selected = true;
                     }
-                    subCategorySelect.appendChild(option);
+                    subCategorySelectForTransaction.appendChild(option);
                 });
-                subCategoryWrapper.style.display = 'block';
+                subCategoryWrapperForTransaction.style.display = 'block';
             } else {
-                subCategoryWrapper.style.display = 'none';
+                subCategoryWrapperForTransaction.style.display = 'none';
             }
         }
-
-        if (mainCategorySelect) { 
-            mainCategorySelect.addEventListener('change', function() {
-                if (finalCategoryIdInput) finalCategoryIdInput.value = this.value; 
-                populateSubcategories(this.value);
-            });
-        } 
-        if (subCategorySelect) { 
-            subCategorySelect.addEventListener('change', function() {
-                if (this.value && finalCategoryIdInput) { finalCategoryIdInput.value = this.value; } 
-                else if (mainCategorySelect && finalCategoryIdInput) { finalCategoryIdInput.value = mainCategorySelect.value; }
+        
+        if (subCategorySelectForTransaction) { 
+            subCategorySelectForTransaction.addEventListener('change', function() {
+                if (this.value && finalCategoryIdInputForTransaction) { 
+                    finalCategoryIdInputForTransaction.value = this.value; 
+                } else if (mainCategorySelectForTransaction && finalCategoryIdInputForTransaction) { 
+                    finalCategoryIdInputForTransaction.value = mainCategorySelectForTransaction.value; 
+                }
             });
         } 
         
-        const openAddBtn = document.getElementById('openAddTransactionModalBtn');
-        if(openAddBtn) { 
-            openAddBtn.addEventListener('click', function() { resetTransactionForm(); });
-        } 
+        document.getElementById('openAddTransactionModalBtn')?.addEventListener('click', function() { 
+            resetTransactionForm(); 
+        });
         
         document.querySelectorAll('.edit-btn').forEach(button => { 
             button.addEventListener('click', function() {
                 resetTransactionForm(); 
                 const transactionId = this.dataset.id;
-                if (modalTitle) modalTitle.textContent = 'Edit Transaction';
-                if (saveTransactionBtn) saveTransactionBtn.textContent = 'Save Changes';
-                if (transactionForm) transactionForm.action = `{{ url_for('transactions.update_transaction', transaction_id=0) }}`.replace('/0', `/${transactionId}`);
+                if (modalTransactionTitle) modalTransactionTitle.textContent = 'Edit Transaction';
+                const saveBtnInFooter = document.querySelector('#addTransactionModal .modal-footer button[type="submit"]');
+                if (saveBtnInFooter) saveBtnInFooter.textContent = 'Save Changes';
+                
+                if (transactionForm) {
+                    const currentUrlParamsForTx = new URLSearchParams(window.location.search);
+                    let actionUrl = `{{ url_for('transactions.update_transaction', transaction_id=0) }}`.replace('/0', `/${transactionId}`);
+                    const paramsForTxRedirect = new URLSearchParams();
+                    paramsForTxRedirect.append('year', currentUrlParamsForTx.get('year') || '{{ view_year }}');
+                    paramsForTxRedirect.append('month', currentUrlParamsForTx.get('month') || ('{{ view_month }}' === 'None' ? '' : '{{ view_month }}'));
+                    paramsForTxRedirect.append('period_type', currentUrlParamsForTx.get('period_type') || '{{ view_period_type }}');
+                    if (currentUrlParamsForTx.get('main_cat_focus')) {
+                        paramsForTxRedirect.append('main_cat_focus', currentUrlParamsForTx.get('main_cat_focus'));
+                    }
+                    transactionForm.action = actionUrl + '?' + paramsForTxRedirect.toString();
+                }
+
                 if (transactionIdEditInput) transactionIdEditInput.value = transactionId; 
                 if (modalAmountInput) modalAmountInput.value = this.dataset.amount;
                 if (modalDateInput) modalDateInput.value = this.dataset.date;
                 if (modalTypeSelect) modalTypeSelect.value = this.dataset.type;
-                const categoryId = this.dataset.category_id;
-                const mainCategoryForEdit = this.dataset.main_category_for_edit;
-                if (mainCategoryForEdit && mainCategorySelect) { 
-                    mainCategorySelect.value = mainCategoryForEdit;
-                    populateSubcategories(mainCategoryForEdit, categoryId); 
-                    if(subCategorySelect) subCategorySelect.value = categoryId; 
-                    if(finalCategoryIdInput) finalCategoryIdInput.value = categoryId;
-                } else if (categoryId && mainCategorySelect) { 
-                    mainCategorySelect.value = categoryId;
-                    populateSubcategories(categoryId); 
-                    if(finalCategoryIdInput) finalCategoryIdInput.value = categoryId;
-                    if(subCategorySelect) subCategorySelect.value = ""; 
+                
+                const categoryId = this.dataset.category_id; 
+                const mainCategoryForEdit = this.dataset.main_category_for_edit; 
+
+                if (mainCategoryForEdit && mainCategorySelectForTransaction) { 
+                    mainCategorySelectForTransaction.value = mainCategoryForEdit;
+                    populateSubcategoriesForTransaction(mainCategoryForEdit, categoryId); 
+                    if(finalCategoryIdInputForTransaction) finalCategoryIdInputForTransaction.value = categoryId;
+                } else if (categoryId && mainCategorySelectForTransaction) { 
+                    mainCategorySelectForTransaction.value = categoryId; 
+                    populateSubcategoriesForTransaction(categoryId); 
+                    if(finalCategoryIdInputForTransaction) finalCategoryIdInputForTransaction.value = categoryId;
                 } else { 
-                    if(mainCategorySelect) mainCategorySelect.value = "";
-                    if(subCategoryWrapper) subCategoryWrapper.style.display = 'none';
-                    if(finalCategoryIdInput) finalCategoryIdInput.value = ""; 
+                    if(mainCategorySelectForTransaction) mainCategorySelectForTransaction.value = "";
+                    populateSubcategoriesForTransaction(""); 
+                    if(finalCategoryIdInputForTransaction) finalCategoryIdInputForTransaction.value = ""; 
                 }
             });
         }); 
         
-        if (addTransactionModalEl) { 
-            addTransactionModalEl.addEventListener('hidden.bs.modal', function () { resetTransactionForm(); });
-        } 
-
+        // --- Charts Logic ---
+        let expectedVsActualChartInstance = null; 
         const expectedVsActualCtx = document.getElementById('expectedVsActualChart')?.getContext('2d');
         const expectedVsActualChartTitleEl = document.getElementById('expectedVsActualChartTitle');
         const backToMainCategoriesChartBtn = document.getElementById('backToMainCategoriesChartBtn');
@@ -276,7 +420,7 @@
         function renderExpectedVsActualChart(chartData) {
             if (expectedVsActualCtx) {
                 if (expectedVsActualChartInstance) { expectedVsActualChartInstance.destroy(); }
-                if (chartData.labels && chartData.labels.length > 0) {
+                if (chartData && chartData.labels && chartData.labels.length > 0) {
                     expectedVsActualChartInstance = new Chart(expectedVsActualCtx, {
                         type: 'bar',
                         data: {
@@ -288,8 +432,11 @@
                         },
                         options: { 
                             responsive: true, maintainAspectRatio: false, 
-                            scales: { y: { beginAtZero: true } }, 
-                            plugins: { legend: { position: 'top' }},
+                            scales: { y: { beginAtZero: true, ticks: { callback: function(value) { return '$' + value; }} } }, 
+                            plugins: { 
+                                legend: { position: 'top' },
+                                tooltip: { callbacks: { label: function(context) { let label = context.dataset.label || ''; if (label) { label += ': '; } if (context.parsed.y !== null) { label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y); } return label;}}}
+                            },
                             onClick: (event, elements) => {
                                 if (elements.length > 0) {
                                     const chartElement = elements[0];
@@ -298,70 +445,391 @@
                                     if (categoryIdForDrilldown) { 
                                         const currentUrl = new URL(window.location.href);
                                         currentUrl.searchParams.set('main_cat_focus', categoryIdForDrilldown);
-                                        currentUrl.searchParams.set('month', '{{ view_month }}');
-                                        currentUrl.searchParams.set('year', '{{ view_year }}');
+                                        const params = new URLSearchParams(window.location.search); // Get current params from browser URL
+                                        currentUrl.searchParams.set('month', params.get('month') || ('{{ view_month }}' === 'None' ? '' : '{{ view_month }}'));
+                                        currentUrl.searchParams.set('year', params.get('year') || '{{ view_year }}');
+                                        currentUrl.searchParams.set('period_type', params.get('period_type') || '{{ view_period_type }}');
                                         window.location.href = currentUrl.toString();
                                     }
                                 }
                             }
                         }
                     });
-                } else { expectedVsActualCtx.canvas.parentElement.innerHTML = '<p class="text-center text-muted p-5">No data for Budget vs. Actual chart.</p>'; }
+                } else { if (expectedVsActualCtx.canvas) {expectedVsActualCtx.canvas.parentElement.innerHTML = '<p class="text-center text-muted p-5">No data for Budget vs. Actual chart.</p>';} }
             }
         }
-        const initialExpectedVsActualData = JSON.parse({{ expected_vs_actual_chart_data|tojson|safe }});
-        renderExpectedVsActualChart(initialExpectedVsActualData);
-
+        
         if (backToMainCategoriesChartBtn && expectedVsActualChartTitleEl) {
             if ({{ focused_main_category_id|tojson|safe }}) { 
                 backToMainCategoriesChartBtn.style.display = 'inline-block';
-                expectedVsActualChartTitleEl.textContent = `Budget vs. Actual Expenses for {{ view_month | month_name }} {{ view_year }} - Subcategories of {{ focused_main_category_name|tojson|safe }}`;
                 backToMainCategoriesChartBtn.addEventListener('click', () => {
                     const currentUrl = new URL(window.location.href);
                     currentUrl.searchParams.delete('main_cat_focus');
-                    currentUrl.searchParams.set('month', '{{ view_month }}');
-                    currentUrl.searchParams.set('year', '{{ view_year }}');
+                    const params = new URLSearchParams(window.location.search); // Get current params
+                    currentUrl.searchParams.set('month', params.get('month') || ('{{ view_month }}' === 'None' ? '' : '{{ view_month }}'));
+                    currentUrl.searchParams.set('year', params.get('year') || '{{ view_year }}');
+                    currentUrl.searchParams.set('period_type', params.get('period_type') || '{{ view_period_type }}');
                     window.location.href = currentUrl.toString();
                 });
             } else {
                 backToMainCategoriesChartBtn.style.display = 'none';
-                expectedVsActualChartTitleEl.textContent = `Budget vs. Actual Expenses for {{ view_month | month_name }} {{ view_year }} - Main Categories`;
             }
         }
 
         function renderNwsPieChart(canvasId, chartTitle, chartDataJson) {
             const ctx = document.getElementById(canvasId)?.getContext('2d');
             if (ctx) {
-                const data = JSON.parse(chartDataJson);
-                const nonZeroDataExists = data.data && data.data.some(d => d > 0);
-                if (data.labels && nonZeroDataExists) {
-                    new Chart(ctx, {
-                        type: 'pie',
-                        data: {
-                            labels: data.labels,
-                            datasets: [{
-                                label: chartTitle, data: data.data,
-                                backgroundColor: ['rgba(255, 99, 132, 0.7)', 'rgba(255, 206, 86, 0.7)', 'rgba(75, 192, 192, 0.7)', 'rgba(201, 203, 207, 0.7)'],
-                                borderColor: ['#fff'], borderWidth: 1
-                            }]
-                        },
-                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: (c) => `${c.label}: $${c.parsed.toFixed(2)}` }}}}
-                    });
-                } else {
-                     ctx.canvas.parentElement.innerHTML = `<p class="text-center text-muted p-5">No data for ${chartTitle}.</p>`;
+                const existingChart = Chart.getChart(ctx);
+                if (existingChart) { existingChart.destroy(); }
+                try {
+                    const data = JSON.parse(chartDataJson); 
+                    const nonZeroDataExists = data.data && data.data.some(d => parseFloat(d) > 0);
+                    if (data.labels && nonZeroDataExists) {
+                        new Chart(ctx, {
+                            type: 'pie',
+                            data: {
+                                labels: data.labels,
+                                datasets: [{
+                                    label: chartTitle, data: data.data,
+                                    backgroundColor: ['rgba(255, 99, 132, 0.7)', 'rgba(255, 206, 86, 0.7)', 'rgba(75, 192, 192, 0.7)', 'rgba(201, 203, 207, 0.7)'],
+                                    borderColor: ['#fff'], borderWidth: 1
+                                }]
+                            },
+                            options: { 
+                                responsive: true, maintainAspectRatio: false, 
+                                plugins: { 
+                                    legend: { position: 'bottom' }, 
+                                    tooltip: { callbacks: { label: (c) => `${c.label}: $${parseFloat(c.parsed).toFixed(2)} (${((parseFloat(c.parsed) / c.chart.getDatasetMeta(0).total) * 100).toFixed(1)}%)` }}
+                                }
+                            }
+                        });
+                    } else {
+                         if (ctx.canvas) { ctx.canvas.parentElement.innerHTML = `<p class="text-center text-muted p-5">No data for ${chartTitle}.</p>`;}
+                    }
+                } catch(e) {
+                    console.error("Error parsing JSON for chart " + canvasId + ":", chartDataJson, e);
+                    if (ctx.canvas) { ctx.canvas.parentElement.innerHTML = `<p class="text-center text-danger p-5">Error loading data for ${chartTitle}.</p>`;}
                 }
             }
         }
+        
+        const initialExpectedVsActualData = JSON.parse({{ expected_vs_actual_chart_data|tojson|safe }});
+        renderExpectedVsActualChart(initialExpectedVsActualData);
         renderNwsPieChart('nwsBudgetedChart', 'Budgeted NWS', {{ nws_budgeted_chart_data|tojson|safe }});
         renderNwsPieChart('nwsActualChart', 'Actual NWS', {{ nws_actual_chart_data|tojson|safe }});
 
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('open_budget_planner') === 'true') { 
-            const budgetModal = new bootstrap.Modal(document.getElementById('budgetPlanningModal'));
-            budgetModal.show();
-            const newUrl = window.location.pathname + window.location.search.replace(/&?open_budget_planner=true/, '').replace(/\?$/, '');
-            window.history.replaceState({}, document.title, newUrl);
+        // --- Manage Categories Modal Client-Side Logic ---
+        let pendingNewMainCategories = [];
+        let pendingNewSubCategories = [];
+        let pendingDeletions = []; 
+        let tempCategoryIdCounter = 0; 
+
+        function initializeManageCategoriesModal() {
+            console.log("Initializing Manage Categories Modal JS...");
+            pendingNewMainCategories = [];
+            pendingNewSubCategories = [];
+            pendingDeletions = []; 
+            tempCategoryIdCounter = 0;
+            
+            const alertContainer = document.getElementById('category-modal-alerts');
+            if(alertContainer) alertContainer.innerHTML = '';
+
+            const parentSelect = document.getElementById('newSubCategoryParentSelect');
+            if (parentSelect) {
+                parentSelect.innerHTML = '<option value="" disabled selected>Select parent...</option>';
+                const mainCategoriesForSubAdd = hierarchicalDataFromFlask.main_categories || [];
+                mainCategoriesForSubAdd.forEach(mc => {
+                    const option = document.createElement('option');
+                    option.value = mc.id; 
+                    option.textContent = mc.name;
+                    parentSelect.appendChild(option);
+                });
+            }
+
+            const clientAddMainBtn = document.getElementById('clientAddMainCategoryBtn');
+            const clientAddSubBtn = document.getElementById('clientAddSubCategoryBtn');
+            const saveAllBtn = document.getElementById('saveAllCategoryChangesBtn');
+
+            if (clientAddMainBtn) {
+                clientAddMainBtn.removeEventListener('click', clientSideAddMainCategory); 
+                clientAddMainBtn.addEventListener('click', clientSideAddMainCategory);
+            }
+            if (clientAddSubBtn) {
+                clientAddSubBtn.removeEventListener('click', clientSideAddSubCategory);
+                clientAddSubBtn.addEventListener('click', clientSideAddSubCategory);
+            }
+            if (saveAllBtn) {
+                saveAllBtn.removeEventListener('click', saveAllCategoryChanges);
+                saveAllBtn.addEventListener('click', saveAllCategoryChanges);
+            }
+
+            document.querySelectorAll('.delete-existing-category-btn').forEach(button => {
+                const newButton = button.cloneNode(true);
+                button.parentNode.replaceChild(newButton, button);
+                newButton.addEventListener('click', handleMarkExistingForDeletion);
+            });
+            
+            document.querySelectorAll('#categoryListContainer .list-group-item[data-category-id]').forEach(li => {
+                if (!li.dataset.isPending || li.dataset.isPending === "false") { 
+                    const catId = li.dataset.categoryId;
+                    if (!pendingDeletions.includes(parseInt(catId))) { 
+                         li.classList.remove('marked-for-deletion');
+                         const actionContainer = li.querySelector('.action-buttons-container');
+                         if (actionContainer && !actionContainer.querySelector('.delete-existing-category-btn')) {
+                            const originalDeleteButton = document.createElement('button');
+                            originalDeleteButton.type = 'button';
+                            originalDeleteButton.className = 'btn btn-sm delete-existing-category-btn';
+                            originalDeleteButton.dataset.categoryId = catId;
+                            originalDeleteButton.dataset.categoryName = li.dataset.categoryName;
+                            originalDeleteButton.innerHTML = '&times;';
+                            if (li.classList.contains('main-category-item')) {
+                                originalDeleteButton.classList.add('btn-danger');
+                                originalDeleteButton.title = `Mark to delete main category ${li.dataset.categoryName}`;
+                            } else {
+                                originalDeleteButton.classList.add('btn-outline-danger');
+                                originalDeleteButton.title = `Mark to delete subcategory ${li.dataset.categoryName}`;
+                            }
+                            actionContainer.innerHTML = ''; 
+                            if (li.classList.contains('sub-category-item')) { 
+                                const financialSelect = document.createElement('select');
+                                financialSelect.name = `financial_goal_type_${catId}`;
+                                financialSelect.className = 'form-select form-select-sm financial-type-select me-2 existing-financial-type-select';
+                                financialSelect.innerHTML = `<option value="">Unset</option><option value="Need">Need</option><option value="Want">Want</option><option value="Saving">Saving</option>`;
+                                // TODO: Restore selected value if needed
+                                actionContainer.appendChild(financialSelect);
+                            }
+                            actionContainer.appendChild(originalDeleteButton);
+                            originalDeleteButton.addEventListener('click', handleMarkExistingForDeletion);
+                         }
+                         const finSelect = li.querySelector('.existing-financial-type-select');
+                         if (finSelect) finSelect.disabled = false;
+                    } else {
+                        li.classList.add('marked-for-deletion');
+                        const finSelect = li.querySelector('.existing-financial-type-select');
+                        if (finSelect) finSelect.disabled = true;
+                        const actionContainer = li.querySelector('.action-buttons-container');
+                        if(actionContainer && !actionContainer.querySelector('.undo-delete-btn')) {
+                            actionContainer.innerHTML = `<button type="button" class="btn btn-warning btn-sm undo-delete-btn" data-category-id="${catId}">Undo</button>`;
+                            actionContainer.querySelector('.undo-delete-btn').addEventListener('click', handleUndoMarkForDeletion);
+                        }
+                    }
+                }
+            });
+            console.log("Manage Categories Modal JS Initialized and listeners attached.");
         }
+        
+        function handleMarkExistingForDeletion(event) {
+            const button = event.currentTarget;
+            const categoryId = parseInt(button.dataset.categoryId);
+            const categoryName = button.dataset.categoryName;
+            const listItem = button.closest('li');
+
+            if (confirm(`Mark "${categoryName}" for deletion? It will be permanently deleted when you save all changes.`)) {
+                if (!pendingDeletions.includes(categoryId)) {
+                    pendingDeletions.push(categoryId);
+                }
+                listItem.classList.add('marked-for-deletion');
+                const financialSelect = listItem.querySelector('.existing-financial-type-select');
+                if (financialSelect) financialSelect.disabled = true;
+
+                const actionContainer = listItem.querySelector('.action-buttons-container');
+                actionContainer.innerHTML = `<button type="button" class="btn btn-warning btn-sm undo-delete-btn" data-category-id="${categoryId}">Undo</button>`;
+                actionContainer.querySelector('.undo-delete-btn').addEventListener('click', handleUndoMarkForDeletion);
+            }
+        }
+
+        function handleUndoMarkForDeletion(event) {
+            const button = event.currentTarget;
+            const categoryId = parseInt(button.dataset.categoryId);
+            const listItem = button.closest('li');
+
+            pendingDeletions = pendingDeletions.filter(id => id !== categoryId);
+            listItem.classList.remove('marked-for-deletion');
+            const financialSelect = listItem.querySelector('.existing-financial-type-select');
+            if (financialSelect) financialSelect.disabled = false;
+            
+            const actionContainer = listItem.querySelector('.action-buttons-container');
+            const originalDeleteButton = document.createElement('button');
+            originalDeleteButton.type = 'button';
+            originalDeleteButton.dataset.categoryId = categoryId;
+            originalDeleteButton.dataset.categoryName = listItem.dataset.categoryName;
+            originalDeleteButton.innerHTML = '&times;';
+
+            if (listItem.classList.contains('main-category-item')) {
+                originalDeleteButton.className = 'btn btn-danger btn-sm delete-existing-category-btn';
+                originalDeleteButton.title = `Mark to delete main category ${listItem.dataset.categoryName}`;
+            } else {
+                originalDeleteButton.className = 'btn btn-outline-danger btn-sm delete-existing-category-btn';
+                 originalDeleteButton.title = `Mark to delete subcategory ${listItem.dataset.categoryName}`;
+            }
+            
+            actionContainer.innerHTML = ''; 
+            if (listItem.classList.contains('sub-category-item')) { 
+                const currentSelectValue = financialSelect ? financialSelect.value : ""; 
+                const newFinancialSelect = document.createElement('select');
+                newFinancialSelect.name = `financial_goal_type_${categoryId}`;
+                newFinancialSelect.className = 'form-select form-select-sm financial-type-select me-2 existing-financial-type-select';
+                newFinancialSelect.innerHTML = `
+                    <option value="" ${currentSelectValue === "" ? "selected" : ""}>Unset</option>
+                    <option value="Need" ${currentSelectValue === "Need" ? "selected" : ""}>Need</option>
+                    <option value="Want" ${currentSelectValue === "Want" ? "selected" : ""}>Want</option>
+                    <option value="Saving" ${currentSelectValue === "Saving" ? "selected" : ""}>Saving</option>
+                `;
+                actionContainer.appendChild(newFinancialSelect);
+            }
+            actionContainer.appendChild(originalDeleteButton);
+            originalDeleteButton.addEventListener('click', handleMarkExistingForDeletion);
+        }
+        
+        function clientSideAddMainCategory() { 
+            const nameInput = document.getElementById('newMainCategoryNameInput');
+            const name = nameInput.value.trim();
+            if (!name) { displayCategoryModalAlert('Main category name cannot be empty.', 'warning'); return; }
+            if (pendingNewMainCategories.some(cat => cat.name.toLowerCase() === name.toLowerCase()) || 
+                Array.from(document.querySelectorAll('#mainCategoryListUl > .main-category-item')).some(item => item.dataset.categoryName && item.dataset.categoryName.toLowerCase() === name.toLowerCase() && !item.dataset.tempId && !item.classList.contains('marked-for-deletion')) ) {
+                displayCategoryModalAlert('Main category name already exists or is pending.', 'warning'); return;
+            }
+            const tempId = `temp_main_${tempCategoryIdCounter++}`;
+            pendingNewMainCategories.push({ temp_id: tempId, name: name });
+            const mainListUl = document.getElementById('mainCategoryListUl') || createMainCategoryListUl();
+            const listItem = document.createElement('li');
+            listItem.className = 'list-group-item main-category-item d-flex justify-content-between align-items-center pending-category';
+            listItem.dataset.tempId = tempId; listItem.dataset.categoryName = name; listItem.dataset.isPending = "true";
+            listItem.innerHTML = `<span>${name} (New)</span><div class="d-flex align-items-center action-buttons-container"><button type="button" class="btn btn-outline-warning btn-sm pending-delete-btn" data-temp-id="${tempId}" data-type="main">&times; Remove</button></div>`;
+            mainListUl.appendChild(listItem);
+            attachPendingDeleteListener(listItem.querySelector('.pending-delete-btn'));
+            const parentSelect = document.getElementById('newSubCategoryParentSelect');
+            if (parentSelect) {
+                const option = document.createElement('option'); option.value = tempId; option.textContent = name + " (New)"; parentSelect.appendChild(option);
+            }
+            nameInput.value = ''; document.getElementById('noCategoriesDefinedMsg')?.remove();
+            clearCategoryModalAlerts();
+        }
+        function clientSideAddSubCategory() { 
+            const nameInput = document.getElementById('newSubCategoryNameInput');
+            const parentSelect = document.getElementById('newSubCategoryParentSelect');
+            const name = nameInput.value.trim();
+            const parentIdOrTempId = parentSelect.value;
+            const parentName = parentSelect.options[parentSelect.selectedIndex]?.textContent.replace(" (New)","") || "Unknown Parent";
+            if (!name) { displayCategoryModalAlert('Subcategory name cannot be empty.', 'warning'); return; }
+            if (!parentIdOrTempId) { displayCategoryModalAlert('Parent category must be selected.', 'warning'); return; }
+            const tempId = `temp_sub_${tempCategoryIdCounter++}`;
+            
+            let parentLi = document.querySelector(`#mainCategoryListUl > .main-category-item[data-category-id="${parentIdOrTempId}"]`) || document.querySelector(`#mainCategoryListUl > .main-category-item[data-temp-id="${parentIdOrTempId}"]`);
+            if (!parentLi) { displayCategoryModalAlert('Parent category element not found in list.', 'danger'); return; }
+            let subListUl = parentLi.nextElementSibling;
+            if (!subListUl || !subListUl.matches('ul.list-group-flush')) {
+                subListUl = document.createElement('ul'); subListUl.className = 'list-group list-group-flush ms-3'; 
+                subListUl.dataset.parentIdOrTempId = parentIdOrTempId; parentLi.insertAdjacentElement('afterend', subListUl);
+            }
+            if (Array.from(subListUl.children).some(item => item.dataset.categoryName && item.dataset.categoryName.toLowerCase() === name.toLowerCase() && !item.classList.contains('marked-for-deletion'))) {
+                displayCategoryModalAlert(`Subcategory "${name}" already exists or is pending under "${parentName}".`, 'warning'); return;
+            }
+            pendingNewSubCategories.push({ temp_id: tempId, name: name, parent_id_or_temp_id: parentIdOrTempId, parent_name_for_display: parentName });
+            const listItem = document.createElement('li');
+            listItem.className = 'list-group-item sub-category-item d-flex justify-content-between align-items-center pending-category';
+            listItem.dataset.tempId = tempId; listItem.dataset.categoryName = name; listItem.dataset.isPending = "true";
+            listItem.innerHTML = `<small>${name} (New)</small><div class="d-flex align-items-center action-buttons-container"><select name="financial_goal_type_${tempId}" class="form-select form-select-sm financial-type-select me-2 pending-financial-type-select"><option value="" selected>Unset</option><option value="Need">Need</option><option value="Want">Want</option><option value="Saving">Saving</option></select><button type="button" class="btn btn-outline-warning btn-sm pending-delete-btn" data-temp-id="${tempId}" data-type="sub">&times; Remove</button></div>`;
+            subListUl.appendChild(listItem);
+            attachPendingDeleteListener(listItem.querySelector('.pending-delete-btn'));
+            nameInput.value = ''; parentSelect.value = '';
+            clearCategoryModalAlerts();
+        }
+        function attachPendingDeleteListener(button) { 
+            button.addEventListener('click', function() {
+                const tempId = this.dataset.tempId; const type = this.dataset.type;
+                if (type === 'main') {
+                    pendingNewMainCategories = pendingNewMainCategories.filter(cat => cat.temp_id !== tempId);
+                    pendingNewSubCategories = pendingNewSubCategories.filter(sub => sub.parent_id_or_temp_id !== tempId);
+                    const parentSelect = document.getElementById('newSubCategoryParentSelect');
+                    if(parentSelect){ const optToRemove = parentSelect.querySelector(`option[value="${tempId}"]`); if(optToRemove) optToRemove.remove(); }
+                    const mainLi = document.querySelector(`.main-category-item[data-temp-id="${tempId}"]`);
+                    const subUl = mainLi?.nextElementSibling;
+                    if (subUl && subUl.matches('ul') && subUl.dataset.parentIdOrTempId === tempId) { subUl.remove(); }
+                } else if (type === 'sub') {
+                    pendingNewSubCategories = pendingNewSubCategories.filter(cat => cat.temp_id !== tempId);
+                }
+                this.closest('li').remove();
+            });
+        }
+        function createMainCategoryListUl() { 
+            const container = document.getElementById('categoryListContainer');
+            document.getElementById('noCategoriesDefinedMsg')?.remove();
+            const ul = document.createElement('ul'); ul.className = 'list-group'; ul.id = 'mainCategoryListUl';
+            container.appendChild(ul); return ul;
+        }
+        
+        function displayCategoryModalAlert(message, type = 'danger') {
+            const alertContainer = document.getElementById('category-modal-alerts');
+            if (alertContainer) {
+                const alertDiv = document.createElement('div');
+                alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+                alertDiv.role = 'alert';
+                alertDiv.innerHTML = `
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                `;
+                alertContainer.innerHTML = ''; 
+                alertContainer.appendChild(alertDiv);
+            } else {
+                alert(message); 
+            }
+        }
+        function clearCategoryModalAlerts() {
+            const alertContainer = document.getElementById('category-modal-alerts');
+            if (alertContainer) alertContainer.innerHTML = '';
+        }
+
+        async function saveAllCategoryChanges() { 
+            clearCategoryModalAlerts();
+            const financialTypeUpdates = [];
+            document.querySelectorAll('.existing-financial-type-select').forEach(select => {
+                const listItem = select.closest('li');
+                if (listItem && !listItem.classList.contains('marked-for-deletion')) {
+                    const categoryId = select.name.replace('financial_goal_type_', '');
+                    financialTypeUpdates.push({ id: categoryId, type: select.value });
+                }
+            });
+            const pendingSubsWithTypes = pendingNewSubCategories.map(sub => {
+                const selectElement = document.querySelector(`select[name="financial_goal_type_${sub.temp_id}"]`);
+                return { temp_id: sub.temp_id, name: sub.name, parent_id_or_temp_id: sub.parent_id_or_temp_id, financial_goal_type: selectElement ? selectElement.value : "" };
+            });
+            const payload = {
+                financial_type_updates: financialTypeUpdates,
+                new_main_categories: pendingNewMainCategories.map(m => ({ name: m.name, temp_id: m.temp_id })), 
+                new_sub_categories: pendingSubsWithTypes,
+                deletions: pendingDeletions 
+            };
+            try {
+                const response = await fetch("{{ url_for('categories.save_all_category_changes') }}", {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (response.ok && result.status === 'success') {
+                    const manageCategoriesModalInstance = bootstrap.Modal.getInstance(document.getElementById('manageCategoriesModal'));
+                    if(manageCategoriesModalInstance) manageCategoriesModalInstance.hide();
+                    setTimeout(() => { window.location.reload(); }, 100); 
+                } else { 
+                    displayCategoryModalAlert(result.message || 'Could not save changes. Please check data and try again.', 'danger');
+                }
+            } catch (error) { 
+                console.error('Error saving category changes:', error); 
+                displayCategoryModalAlert('An unexpected network error occurred while saving. Check console.', 'danger');
+            }
+        }
+        
+        // Ensure this is attached correctly if the element exists
+        const manageCategoriesModalElGlobal = document.getElementById('manageCategoriesModal');
+        if (manageCategoriesModalElGlobal && categoriesModalInstance) { // Check if instance was created
+            // No need to add another 'shown.bs.modal' listener here if it's already added when instance is created
+        } else if (manageCategoriesModalElGlobal && !categoriesModalInstance) {
+            // This case should ideally not happen if modalEl exists, instance should be created.
+            // But as a fallback:
+            categoriesModalInstance = new bootstrap.Modal(manageCategoriesModalElGlobal);
+            manageCategoriesModalElGlobal.addEventListener('shown.bs.modal', initializeManageCategoriesModal);
+        }
+
+
     }); 
 </script>
 {% endblock %}

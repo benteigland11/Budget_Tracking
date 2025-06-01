@@ -5,33 +5,38 @@
                 <h5 class="modal-title" id="budgetPlanningModalLabel">Monthly Budget Planning</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <form method="GET" action="{{ url_for('main.index') }}" id="budgetPlanningPeriodForm" class="row g-3 align-items-center mb-3">
-                    <input type="hidden" name="open_budget_planner" value="true"> 
-                    <div class="col-auto"><label for="budget_month_select" class="col-form-label">Month:</label></div>
-                    <div class="col-auto">
-                        <select name="budget_month" id="budget_month_select" class="form-select">
-                            {% for m in range(1, 13) %}
-                            <option value="{{ m }}" {% if m == budget_planning_month %}selected{% endif %}>{{ m | month_name }}</option>
-                            {% endfor %}
-                        </select>
+            {# This is the main form for SAVING budget goals #}
+            <form action="{{ url_for('budgets.set_budget_goal') }}" method="POST" id="budgetGoalsForm">
+                <div class="modal-body">
+                    {# Period selection dropdowns - no longer a separate form #}
+                    <div class="row g-3 align-items-center mb-3" id="budgetPeriodSelectorContainer">
+                        <div class="col-auto"><label for="budget_month_select_modal" class="col-form-label me-1">Month:</label></div>
+                        <div class="col-auto">
+                            {# Removed onchange, will be handled by JS listener. Kept ID. Removed name as it's not directly submitted. #}
+                            <select id="budget_month_select_modal" class="form-select me-2">
+                                {% for m_opt in range(1, 13) %}
+                                <option value="{{ m_opt }}" {% if m_opt == budget_planning_month %}selected{% endif %}>{{ m_opt | month_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-auto"><label for="budget_year_select_modal" class="col-form-label me-1">Year:</label></div>
+                        <div class="col-auto">
+                            {# Removed onchange, will be handled by JS listener. Kept ID. Removed name. #}
+                            <select id="budget_year_select_modal" class="form-select me-2">
+                                {% for y_opt_modal in all_years_for_dropdowns %} 
+                                <option value="{{ y_opt_modal }}" {% if y_opt_modal == budget_planning_year|string %}selected{% endif %}>{{ y_opt_modal }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
                     </div>
-                    <div class="col-auto"><label for="budget_year_select" class="col-form-label">Year:</label></div>
-                    <div class="col-auto">
-                        <select name="budget_year" id="budget_year_select" class="form-select">
-                            {% for y_opt in range(current_year - 2, current_year + 3) %} 
-                            <option value="{{ y_opt }}" {% if y_opt == budget_planning_year %}selected{% endif %}>{{ y_opt }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-auto"><button type="submit" class="btn btn-sm btn-outline-primary">Load Budget</button></div>
-                </form>
-                <hr>
-                <h6>Budget for: <strong id="budgetPeriodDisplay">{{ budget_planning_month | month_name }} {{ budget_planning_year }}</strong></h6>
-                
-                <form action="{{ url_for('budgets.set_budget_goal') }}" method="POST" id="budgetGoalsForm">
+                    <hr>
+                    <h6>Budget for: <strong id="budgetPeriodDisplay">{{ budget_planning_month | month_name }} {{ budget_planning_year }}</strong></h6>
+                    
+                    {# These hidden inputs are part of the OUTER budgetGoalsForm for SAVING #}
+                    {# Their values are set by Flask based on budget_planning_year & budget_planning_month context vars #}
                     <input type="hidden" name="year" value="{{ budget_planning_year }}">
                     <input type="hidden" name="month" value="{{ budget_planning_month }}">
+                    
                     <div class="table-responsive" style="max-height: 50vh;">
                         <table class="table table-sm">
                             <thead class="sticky-thead">
@@ -48,7 +53,7 @@
                                                value="{{ '%.2f'|format(main_cat_budget.budgeted_amount) if main_cat_budget.budgeted_amount is not none and main_cat_budget.budgeted_amount > 0 else '' }}" 
                                                placeholder="0.00">
                                         {% else %}
-                                            <span class="text-muted fst-italic">(Sum of subcategories)</span>
+                                            <span class="text-muted fst-italic">${{ "%.2f"|format(main_cat_budget.budgeted_amount if main_cat_budget.budgeted_amount is not none else 0.0) }}</span>
                                         {% endif %}
                                     </td>
                                 </tr>
@@ -76,12 +81,12 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="mt-3 d-flex justify-content-end">
-                        <button type="submit" class="btn btn-primary">Save All Budgets</button>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary" form="budgetGoalsForm">Save All Budgets</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
