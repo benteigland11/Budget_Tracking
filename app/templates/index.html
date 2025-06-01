@@ -50,10 +50,23 @@
         color: #f8f9fa;
     }
     #category-modal-alerts .alert { font-size: 0.9rem; padding: 0.5rem 1rem;}
+    #budgetPlanningModal .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(255, 255, 255, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 10; /* Ensure it's above table content */
+    }
 </style>
 {% endblock %}
 
 {% block content %}
+    {# ... (Your existing content block: action buttons, summary stats, analytics section, transaction history) ... #}
     <div class="row action-buttons text-center text-md-start">
         <div class="col-md-auto mb-2 mb-md-0">
             <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#addTransactionModal" id="openAddTransactionModalBtn">
@@ -187,9 +200,9 @@
 {% block scripts %}
 <script>
     var hierarchicalDataFromFlask = {{ hierarchical_categories_data_for_js|tojson|safe }};
+    var monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
     document.addEventListener('DOMContentLoaded', () => {
-        // Initialize Bootstrap Modal instances once
         const budgetModalEl = document.getElementById('budgetPlanningModal');
         let budgetModalInstance = budgetModalEl ? new bootstrap.Modal(budgetModalEl) : null;
 
@@ -205,7 +218,6 @@
             addTransactionModalEl.addEventListener('hidden.bs.modal', resetTransactionForm);
         }
 
-        // --- Common Modal/Page Load Logic for URL parameters ---
         const urlParams = new URLSearchParams(window.location.search);
         let paramsModifiedForHistory = false;
 
@@ -230,48 +242,253 @@
             window.history.replaceState({}, document.title, newRelativePathQuery);
         }
 
-        // --- Budget Planning Modal: Auto-reload on period change ---
+        // --- Budget Planning Modal Logic ---
         const budgetMonthSelectModal = document.getElementById('budget_month_select_modal');
         const budgetYearSelectModal = document.getElementById('budget_year_select_modal');
+        const budgetPeriodDisplay = document.getElementById('budgetPeriodDisplay');
+        const budgetPlanningTableBody = document.getElementById('budgetPlanningTableBody');
+        const hiddenBudgetYearInput = document.getElementById('hiddenBudgetYearInput');
+        const hiddenBudgetMonthInput = document.getElementById('hiddenBudgetMonthInput');
+        const saveCurrentBudgetBtn = document.getElementById('saveCurrentBudgetBtn');
+        let isBudgetFormDirty = false;
+        let currentBudgetYear = '{{ budget_planning_year }}'; // Initial values from Flask
+        let currentBudgetMonth = '{{ budget_planning_month }}';
 
-        function handleBudgetPeriodChange() {
-            const selectedMonth = budgetMonthSelectModal.value;
-            const selectedYear = budgetYearSelectModal.value;
-            
-            let targetUrl = "{{ url_for('main.index') }}"; 
-            const paramsToKeep = new URLSearchParams(); 
-
-            paramsToKeep.append('budget_month', selectedMonth);
-            paramsToKeep.append('budget_year', selectedYear);
-            paramsToKeep.append('open_budget_planner', 'true');
-
-            const currentAnalyticsParams = new URLSearchParams(window.location.search);
-            if(currentAnalyticsParams.has('period_type')) paramsToKeep.append('period_type', currentAnalyticsParams.get('period_type'));
-            
-            // Only add main analytics year/month if they are NOT the ones being set by budget_ controls
-            if(currentAnalyticsParams.has('year') && currentAnalyticsParams.get('year') !== selectedYear) {
-                 // This logic might be too complex or lead to conflicting params.
-                 // For now, let's prioritize budget_year and budget_month for the reload.
-                 // If analytics view needs to be preserved independently, it's more complex.
+        function updateSaveButtonText(year, monthName) {
+            if (saveCurrentBudgetBtn) {
+                saveCurrentBudgetBtn.textContent = `Save ${monthName} ${year} Plan`;
             }
-             if(currentAnalyticsParams.has('main_cat_focus')) paramsToKeep.append('main_cat_focus', currentAnalyticsParams.get('main_cat_focus'));
+        }
+        
+        // Call initially to set the button text
+        if (budgetPeriodDisplay && saveCurrentBudgetBtn) {
+             // budget_planning_month is an int, monthNames is 0-indexed
+            updateSaveButtonText(currentBudgetYear, monthNames[parseInt(currentBudgetMonth) - 1]);
+        }
 
-            targetUrl += '?' + paramsToKeep.toString();
+
+        function attachBudgetInputListeners() {
+            if (budgetPlanningTableBody) {
+                budgetPlanningTableBody.querySelectorAll('input[name="budgeted_amount"]').forEach(input => {
+                    input.removeEventListener('input', markBudgetFormDirty); // Remove old if any
+                    input.addEventListener('input', markBudgetFormDirty);
+                });
+            }
+        }
+        function markBudgetFormDirty() {
+            isBudgetFormDirty = true;
+            console.log("Budget form is dirty.");
+        }
+
+        async function saveCurrentBudget(callbackAfterSave) {
+            const budgetForm = document.getElementById('budgetGoalsForm');
+            if (!budgetForm) return false;
+
+            const formData = new FormData(budgetForm);
+            // Log form data before sending
+            // for (var pair of formData.entries()) {
+            //     console.log('Budget save FormData: ', pair[0]+ ', ' + pair[1]); 
+            // }
             
-            console.log("Budget modal period change. Redirecting to:", targetUrl);
-            window.location.href = targetUrl;
+            try {
+                const response = await fetch(budgetForm.action, {
+                    method: 'POST',
+                    body: formData
+                });
+                if (!response.ok) {
+                    // If server returns an error, try to parse it for a message
+                    let errorMsg = `HTTP error! status: ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMsg = errorData.message || errorMsg;
+                    } catch (e) { /* ignore if response is not json */ }
+                    alert(`Error saving budget: ${errorMsg}`); // Replace with better UI
+                    return false; // Indicate save failed
+                }
+                // Assuming success if response.ok (e.g., 2xx status, or 302 redirect)
+                // The actual flash messages for success/info will come from the server on page reload
+                // or could be handled via JSON response if we change the /set endpoint.
+                console.log("Budget saved successfully (or no changes detected).");
+                isBudgetFormDirty = false; 
+                if (callbackAfterSave && typeof callbackAfterSave === 'function') {
+                    callbackAfterSave();
+                }
+                return true; // Indicate save was successful (or no error from server)
+            } catch (error) {
+                console.error("Error submitting budget form:", error);
+                alert("An unexpected error occurred while saving the budget.");
+                return false; // Indicate save failed
+            }
+        }
+
+        if (saveCurrentBudgetBtn) {
+            saveCurrentBudgetBtn.addEventListener('click', async function(event) {
+                event.preventDefault(); // Prevent default form submission
+                const success = await saveCurrentBudget(() => {
+                    // After successful save, redirect to show the saved month's analytics
+                    const savedYear = hiddenBudgetYearInput.value;
+                    const savedMonth = hiddenBudgetMonthInput.value;
+                    window.location.href = `{{ url_for('main.index') }}?year=${savedYear}&month=${savedMonth}&period_type=monthly`;
+                });
+                if (!success) {
+                    // Handle save failure if needed (e.g. keep modal open, show specific error)
+                    // For now, alert is shown in saveCurrentBudget
+                }
+            });
+        }
+
+
+        async function fetchAndUpdateBudgetPlanner(year, month, forceSwitch = false) {
+            if (!year || !month) {
+                console.warn("Year or month not provided for budget planner update.");
+                return;
+            }
+            
+            if (isBudgetFormDirty && !forceSwitch) {
+                const currentMonthName = monthNames[parseInt(currentBudgetMonth) - 1];
+                const confirmation = confirm(`You have unsaved changes for ${currentMonthName} ${currentBudgetYear}. Save changes before switching?`);
+                
+                if (confirmation) { // User clicked OK (Save)
+                    const saved = await saveCurrentBudget();
+                    if (saved) {
+                        // Proceed to fetch new month's data after successful save
+                        isBudgetFormDirty = false; // Reset as save was successful
+                        // Fall through to fetch new data
+                    } else {
+                        return; // Save failed, do not switch month
+                    }
+                } else { // User clicked Cancel on "Save changes?" OR "No" if it were a three-button dialog
+                    // If they cancel the "Save changes?" dialog, they might still want to switch or not.
+                    // For a simple confirm, "Cancel" means "don't save, but also don't switch yet".
+                    // Let's refine this:
+                    const proceedWithoutSaving = confirm(`Discard unsaved changes for ${currentMonthName} ${currentBudgetYear} and switch to ${monthNames[parseInt(month)-1]} ${year}?`);
+                    if (!proceedWithoutSaving) {
+                        // User decided not to switch after all
+                        // Reset dropdowns to currentBudgetYear and currentBudgetMonth
+                        if(budgetYearSelectModal) budgetYearSelectModal.value = currentBudgetYear;
+                        if(budgetMonthSelectModal) budgetMonthSelectModal.value = currentBudgetMonth;
+                        return; 
+                    }
+                    // User chose to discard changes and switch
+                    isBudgetFormDirty = false; 
+                }
+            }
+
+
+            console.log(`Fetching budget data for Year: ${year}, Month: ${month}`);
+            if (budgetPlanningTableBody) {
+                budgetPlanningTableBody.innerHTML = '<tr><td colspan="3" class="text-center p-5"><div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div></td></tr>';
+            }
+            
+            try {
+                const response = await fetch(`{{ url_for('budgets.get_planning_data') }}?year=${year}&month=${month}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}, message: ${await response.text()}`);
+                }
+                const data = await response.json();
+
+                if (data.error) {
+                    console.error("Error fetching budget planning data from backend:", data.error);
+                    if (budgetPlanningTableBody) budgetPlanningTableBody.innerHTML = `<tr><td colspan="3" class="text-center text-danger p-3">Error loading budget data: ${data.error}</td></tr>`;
+                    return;
+                }
+
+                currentBudgetYear = data.selected_year.toString();
+                currentBudgetMonth = data.selected_month.toString();
+
+                if (budgetPeriodDisplay) budgetPeriodDisplay.textContent = `${data.selected_month_name} ${data.selected_year}`;
+                if (hiddenBudgetYearInput) hiddenBudgetYearInput.value = data.selected_year;
+                if (hiddenBudgetMonthInput) hiddenBudgetMonthInput.value = data.selected_month;
+                updateSaveButtonText(data.selected_year, data.selected_month_name);
+
+
+                if (budgetPlanningTableBody) {
+                    budgetPlanningTableBody.innerHTML = ''; 
+                    const goals = data.budget_goals_for_planning_ui || [];
+                    if (goals.length === 0) {
+                        budgetPlanningTableBody.innerHTML = '<tr><td colspan="3" class="text-center">No categories found for budgeting. Add categories first.</td></tr>';
+                    } else {
+                        goals.forEach(mainCat => {
+                            let mainRowHtml = `
+                                <tr class="budget-category-header">
+                                    <td colspan="2">${mainCat.name}</td>
+                                    <td class="text-end">`;
+                            if (!mainCat.has_sub_categories) {
+                                mainRowHtml += `
+                                    <input type="hidden" name="budget_category_id" value="${mainCat.id}">
+                                    <input type="number" step="0.01" name="budgeted_amount" class="form-control form-control-sm budget-input" 
+                                           value="${(mainCat.budgeted_amount != null && mainCat.budgeted_amount > 0) ? parseFloat(mainCat.budgeted_amount).toFixed(2) : ''}" 
+                                           placeholder="0.00">`;
+                            } else {
+                                mainRowHtml += `<span class="text-muted fst-italic">$${parseFloat(mainCat.budgeted_amount != null ? mainCat.budgeted_amount : 0.0).toFixed(2)}</span>`;
+                            }
+                            mainRowHtml += `</td></tr>`;
+                            budgetPlanningTableBody.insertAdjacentHTML('beforeend', mainRowHtml);
+
+                            if (mainCat.has_sub_categories && mainCat.sub_categories) {
+                                mainCat.sub_categories.forEach(subCat => {
+                                    const typeBadgeClass = subCat.financial_goal_type === 'Need' ? 'primary' : 
+                                                           subCat.financial_goal_type === 'Want' ? 'warning' :
+                                                           subCat.financial_goal_type === 'Saving' ? 'success' : 'secondary';
+                                    const typeName = subCat.financial_goal_type || 'N/A';
+                                    let subRowHtml = `
+                                        <tr class="budget-subcategory-row">
+                                            <td style="padding-left: 2rem !important;">${subCat.name}</td>
+                                            <td>
+                                                 <input type="hidden" name="budget_category_id" value="${subCat.id}">
+                                                 <span class="badge bg-${typeBadgeClass} text-dark">${typeName}</span>
+                                            </td>
+                                            <td class="text-end">
+                                                <input type="number" step="0.01" name="budgeted_amount" class="form-control form-control-sm budget-input" 
+                                                       value="${(subCat.budgeted_amount != null && subCat.budgeted_amount > 0) ? parseFloat(subCat.budgeted_amount).toFixed(2) : ''}" 
+                                                       placeholder="0.00">
+                                            </td>
+                                        </tr>`;
+                                    budgetPlanningTableBody.insertAdjacentHTML('beforeend', subRowHtml);
+                                });
+                            }
+                        });
+                    }
+                    attachBudgetInputListeners(); // Re-attach listeners to new inputs
+                    isBudgetFormDirty = false; // Reset dirty flag after loading new data
+                }
+                
+                const currentUrl = new URL(window.location.href);
+                currentUrl.searchParams.set('budget_year', year);
+                currentUrl.searchParams.set('budget_month', month);
+                currentUrl.searchParams.set('open_budget_planner', 'true'); 
+                window.history.pushState({path:currentUrl.toString()}, '', currentUrl.toString());
+
+            } catch (error) {
+                console.error("Failed to fetch or update budget planner:", error);
+                if (budgetPlanningTableBody) budgetPlanningTableBody.innerHTML = '<tr><td colspan="3" class="text-center text-danger p-3">Failed to load budget data. Check console.</td></tr>';
+            }
+        }
+
+        function handleBudgetPeriodChangeForAjax() {
+            if (budgetMonthSelectModal && budgetYearSelectModal) {
+                const selectedMonth = budgetMonthSelectModal.value;
+                const selectedYear = budgetYearSelectModal.value;
+                // Check if the period actually changed to avoid redundant processing if one dropdown changes but overall period is same
+                if (selectedYear !== currentBudgetYear || selectedMonth !== currentBudgetMonth) {
+                    fetchAndUpdateBudgetPlanner(selectedYear, selectedMonth);
+                }
+            }
         }
 
         if (budgetMonthSelectModal) {
-            budgetMonthSelectModal.addEventListener('change', handleBudgetPeriodChange);
+            budgetMonthSelectModal.addEventListener('change', handleBudgetPeriodChangeForAjax);
         }
         if (budgetYearSelectModal) {
-            budgetYearSelectModal.addEventListener('change', handleBudgetPeriodChange);
+            budgetYearSelectModal.addEventListener('change', handleBudgetPeriodChangeForAjax);
         }
-        // --- End Budget Planning Modal Logic ---
+        // Attach initial listeners for budget inputs if modal is already open with data
+        attachBudgetInputListeners(); 
+        // --- End Budget Planning Modal AJAX Logic ---
 
 
         // --- Add/Edit Transaction Modal Logic ---
+        // ... (This section is complete and correct from previous version)
         const transactionForm = document.getElementById('transactionFormInModal'); 
         const modalTransactionTitle = document.getElementById('addTransactionModalLabel');
         const modalAmountInput = document.getElementById('modal_amount');
@@ -410,8 +627,9 @@
                 }
             });
         }); 
-        
+
         // --- Charts Logic ---
+        // ... (This section is complete and correct from previous version)
         let expectedVsActualChartInstance = null; 
         const expectedVsActualCtx = document.getElementById('expectedVsActualChart')?.getContext('2d');
         const expectedVsActualChartTitleEl = document.getElementById('expectedVsActualChartTitle');
@@ -445,7 +663,7 @@
                                     if (categoryIdForDrilldown) { 
                                         const currentUrl = new URL(window.location.href);
                                         currentUrl.searchParams.set('main_cat_focus', categoryIdForDrilldown);
-                                        const params = new URLSearchParams(window.location.search); // Get current params from browser URL
+                                        const params = new URLSearchParams(window.location.search); 
                                         currentUrl.searchParams.set('month', params.get('month') || ('{{ view_month }}' === 'None' ? '' : '{{ view_month }}'));
                                         currentUrl.searchParams.set('year', params.get('year') || '{{ view_year }}');
                                         currentUrl.searchParams.set('period_type', params.get('period_type') || '{{ view_period_type }}');
@@ -465,7 +683,7 @@
                 backToMainCategoriesChartBtn.addEventListener('click', () => {
                     const currentUrl = new URL(window.location.href);
                     currentUrl.searchParams.delete('main_cat_focus');
-                    const params = new URLSearchParams(window.location.search); // Get current params
+                    const params = new URLSearchParams(window.location.search); 
                     currentUrl.searchParams.set('month', params.get('month') || ('{{ view_month }}' === 'None' ? '' : '{{ view_month }}'));
                     currentUrl.searchParams.set('year', params.get('year') || '{{ view_year }}');
                     currentUrl.searchParams.set('period_type', params.get('period_type') || '{{ view_period_type }}');
@@ -519,6 +737,7 @@
         renderNwsPieChart('nwsActualChart', 'Actual NWS', {{ nws_actual_chart_data|tojson|safe }});
 
         // --- Manage Categories Modal Client-Side Logic ---
+        // ... (This section is complete and correct from previous version)
         let pendingNewMainCategories = [];
         let pendingNewSubCategories = [];
         let pendingDeletions = []; 
@@ -818,18 +1037,14 @@
             }
         }
         
-        // Ensure this is attached correctly if the element exists
         const manageCategoriesModalElGlobal = document.getElementById('manageCategoriesModal');
-        if (manageCategoriesModalElGlobal && categoriesModalInstance) { // Check if instance was created
-            // No need to add another 'shown.bs.modal' listener here if it's already added when instance is created
+        if (manageCategoriesModalElGlobal && categoriesModalInstance) { 
+            // Event listener is already added when categoriesModalInstance is created.
         } else if (manageCategoriesModalElGlobal && !categoriesModalInstance) {
-            // This case should ideally not happen if modalEl exists, instance should be created.
-            // But as a fallback:
+            // Fallback if instance wasn't created but element exists
             categoriesModalInstance = new bootstrap.Modal(manageCategoriesModalElGlobal);
             manageCategoriesModalElGlobal.addEventListener('shown.bs.modal', initializeManageCategoriesModal);
         }
-
-
     }); 
 </script>
 {% endblock %}

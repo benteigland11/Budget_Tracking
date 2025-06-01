@@ -1,9 +1,10 @@
 # app/blueprints/budget_routes.py
 # Blueprint for budget goal management.
 
-from flask import Blueprint, request, redirect, url_for, flash, current_app
+from flask import Blueprint, request, redirect, url_for, flash, current_app, jsonify
 from app.database import get_db 
 from app.utils.helpers import format_month_name 
+from app.utils import db_helpers # Import db_helpers to use its functions
 import datetime
 import sqlite3
 
@@ -16,7 +17,6 @@ def set_budget_goal():
     budget_planning_year_from_form = request.form.get('year', type=int)
     budget_planning_month_from_form = request.form.get('month', type=int)
 
-    # MODIFICATION: Added logging
     current_app.logger.info(f"Attempting to set budget goal for Year: {budget_planning_year_from_form}, Month: {budget_planning_month_from_form}")
 
     try:
@@ -26,7 +26,7 @@ def set_budget_goal():
         category_ids_str = request.form.getlist('budget_category_id') 
         budgeted_amounts_str = request.form.getlist('budgeted_amount')
 
-        if not all([year, month]): # year or month from form could be None if not properly submitted or type conversion failed
+        if not all([year, month]):
             flash("Year and month are required and must be valid numbers for budget setting.", "error")
             current_app.logger.error(f"Budget setting failed: Year or Month missing/invalid. Year: {year}, Month: {month}")
             has_errors = True
@@ -95,7 +95,35 @@ def set_budget_goal():
         redirect_month = budget_planning_month_from_form if budget_planning_month_from_form is not None else datetime.datetime.now().month
         return redirect(url_for('main.index', budget_year=redirect_year, budget_month=redirect_month, open_budget_planner='true'))
     else:
-        view_year = budget_planning_year_from_form if budget_planning_year_from_form is not None else datetime.datetime.now().year
-        view_month = budget_planning_month_from_form if budget_planning_month_from_form is not None else datetime.datetime.now().month
-        return redirect(url_for('main.index', year=view_year, month=view_month))
+        analytics_view_year = budget_planning_year_from_form if budget_planning_year_from_form is not None else datetime.datetime.now().year
+        analytics_view_month = budget_planning_month_from_form if budget_planning_month_from_form is not None else datetime.datetime.now().month
+        
+        current_app.logger.info(f"Budget save successful. Redirecting to main.index with Year: {analytics_view_year}, Month: {analytics_view_month}, PeriodType: monthly")
+        
+        return redirect(url_for('main.index', 
+                                year=analytics_view_year, 
+                                month=analytics_view_month,
+                                period_type='monthly'))
 
+# MODIFICATION: New endpoint to fetch budget planning data
+@bp.route('/get_planning_data', methods=['GET'])
+def get_planning_data():
+    try:
+        year = request.args.get('year', type=int)
+        month = request.args.get('month', type=int)
+
+        if not year or not month:
+            return jsonify({'error': 'Year and month parameters are required.'}), 400
+
+        current_app.logger.info(f"AJAX: Fetching budget planning data for Year: {year}, Month: {month}")
+        budget_goals_data = db_helpers.get_budget_goals_for_planning_ui(year, month)
+        
+        return jsonify({
+            'budget_goals_for_planning_ui': budget_goals_data,
+            'selected_year': year,
+            'selected_month': month,
+            'selected_month_name': format_month_name(month)
+        })
+    except Exception as e:
+        current_app.logger.error(f"Error in get_planning_data: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500

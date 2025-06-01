@@ -5,14 +5,11 @@
                 <h5 class="modal-title" id="budgetPlanningModalLabel">Monthly Budget Planning</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            {# This is the main form for SAVING budget goals #}
             <form action="{{ url_for('budgets.set_budget_goal') }}" method="POST" id="budgetGoalsForm">
                 <div class="modal-body">
-                    {# Period selection dropdowns - no longer a separate form #}
                     <div class="row g-3 align-items-center mb-3" id="budgetPeriodSelectorContainer">
                         <div class="col-auto"><label for="budget_month_select_modal" class="col-form-label me-1">Month:</label></div>
                         <div class="col-auto">
-                            {# Removed onchange, will be handled by JS listener. Kept ID. Removed name as it's not directly submitted. #}
                             <select id="budget_month_select_modal" class="form-select me-2">
                                 {% for m_opt in range(1, 13) %}
                                 <option value="{{ m_opt }}" {% if m_opt == budget_planning_month %}selected{% endif %}>{{ m_opt | month_name }}</option>
@@ -21,7 +18,6 @@
                         </div>
                         <div class="col-auto"><label for="budget_year_select_modal" class="col-form-label me-1">Year:</label></div>
                         <div class="col-auto">
-                            {# Removed onchange, will be handled by JS listener. Kept ID. Removed name. #}
                             <select id="budget_year_select_modal" class="form-select me-2">
                                 {% for y_opt_modal in all_years_for_dropdowns %} 
                                 <option value="{{ y_opt_modal }}" {% if y_opt_modal == budget_planning_year|string %}selected{% endif %}>{{ y_opt_modal }}</option>
@@ -32,17 +28,15 @@
                     <hr>
                     <h6>Budget for: <strong id="budgetPeriodDisplay">{{ budget_planning_month | month_name }} {{ budget_planning_year }}</strong></h6>
                     
-                    {# These hidden inputs are part of the OUTER budgetGoalsForm for SAVING #}
-                    {# Their values are set by Flask based on budget_planning_year & budget_planning_month context vars #}
-                    <input type="hidden" name="year" value="{{ budget_planning_year }}">
-                    <input type="hidden" name="month" value="{{ budget_planning_month }}">
+                    <input type="hidden" name="year" id="hiddenBudgetYearInput" value="{{ budget_planning_year }}">
+                    <input type="hidden" name="month" id="hiddenBudgetMonthInput" value="{{ budget_planning_month }}">
                     
                     <div class="table-responsive" style="max-height: 50vh;">
                         <table class="table table-sm">
                             <thead class="sticky-thead">
                                 <tr><th>Category</th><th>Type</th><th class="text-end">Budgeted Amount ($)</th></tr>
                             </thead>
-                            <tbody>
+                            <tbody id="budgetPlanningTableBody">
                                 {% for main_cat_budget in budget_goals_for_planning_ui %}
                                 <tr class="budget-category-header">
                                     <td colspan="2">{{ main_cat_budget.name }}</td>
@@ -84,7 +78,8 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="submit" class="btn btn-primary" form="budgetGoalsForm">Save All Budgets</button>
+                    {# MODIFICATION: Added ID to save button #}
+                    <button type="submit" class="btn btn-primary" form="budgetGoalsForm" id="saveCurrentBudgetBtn">Save Plan</button>
                 </div>
             </form>
         </div>
