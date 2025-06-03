@@ -1,0 +1,95 @@
+<div class="modal fade" id="manageGoalsModal" tabindex="-1" aria-labelledby="manageGoalsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="manageGoalsModalLabel">Manage Financial Goals</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="goal-modal-alerts" class="mb-3"></div>
+
+                <ul class="nav nav-tabs" id="goalTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="manage-tab-button" data-bs-toggle="tab" data-bs-target="#manageTabPane" type="button" role="tab" aria-controls="manageTabPane" aria-selected="true">Manage Goals</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="fund-tab-button" data-bs-toggle="tab" data-bs-target="#fundTabPane" type="button" role="tab" aria-controls="fundTabPane" aria-selected="false">Fund Goal</button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="goalTabsContent">
+                    <div class="tab-pane fade show active" id="manageTabPane" role="tabpanel" aria-labelledby="manage-tab-button" tabindex="0">
+                        <div class="row mt-3">
+                            <div class="col-md-5" id="createEditGoalSection">
+                                <h6 class="mt-2">Create or Edit Goal</h6>
+                                <form id="goalForm">
+                                    <input type="hidden" name="goalId" id="modalGoalId">
+                                    <div class="mb-3">
+                                        <label for="modalGoalName" class="form-label">Goal Name <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="modalGoalName" name="name" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="modalGoalTargetAmount" class="form-label">Target Amount ($) <span class="text-danger">*</span></label>
+                                        <input type="number" class="form-control" id="modalGoalTargetAmount" name="target_amount" required step="0.01" min="0.01">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="modalGoalTargetDate" class="form-label">Target Date (Optional)</label>
+                                        <input type="date" class="form-control" id="modalGoalTargetDate" name="target_date">
+                                    </div>
+                                    <div class="mb-3 form-check">
+                                        <input type="checkbox" class="form-check-input" id="modalGoalIsCompleted" name="is_completed">
+                                        <label class="form-check-label" for="modalGoalIsCompleted">Mark as Completed</label>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary" id="saveGoalBtn">Save Goal</button>
+                                    <button type="button" class="btn btn-secondary" id="clearGoalFormBtn" style="display: none;">Clear Form</button>
+                                </form>
+                            </div>
+
+                            <div class="col-md-7" id="goalsListSection">
+                                <h6 class="mt-2">Current Goals Overview</h6>
+                                <div id="goalsListContainer" class="list-group" style="max-height: 400px; overflow-y: auto;">
+                                    <p class="text-muted text-center p-3" id="noGoalsMessage">No goals found. Create one!</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="fundTabPane" role="tabpanel" aria-labelledby="fund-tab-button" tabindex="0">
+                        <div class="row mt-3 justify-content-center">
+                            <div class="col-md-8" id="goalFundTransferSection">
+                                <h6 class="mt-2">Contribute or Withdraw Funds</h6>
+                                <form id="goalFundTransferForm">
+                                    <div class="mb-3">
+                                        <label for="modalTransferGoalSelect" class="form-label">Select Goal <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="modalTransferGoalSelect" name="transferGoalId" required>
+                                            <option value="" disabled selected>-- Select a goal --</option>
+                                            </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="modalTransferAmount" class="form-label">Amount ($) <span class="text-danger">*</span></label>
+                                        <input type="number" class="form-control" id="modalTransferAmount" name="transferAmount" required step="0.01" min="0.01">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="modalTransferDate" class="form-label">Date <span class="text-danger">*</span></label>
+                                        <input type="date" class="form-control" id="modalTransferDate" name="transferDate" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="modalTransferDescription" class="form-label">Description (Optional)</label>
+                                        <input type="text" class="form-control" id="modalTransferDescription" name="transferDescription" placeholder="e.g., Birthday gift savings">
+                                    </div>
+                                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                        <button type="button" class="btn btn-success" id="contributeToGoalBtn">Contribute to Goal</button>
+                                        <button type="button" class="btn btn-warning" id="withdrawFromGoalBtn">Withdraw from Goal</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>

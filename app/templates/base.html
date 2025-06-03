@@ -24,13 +24,17 @@
             margin-bottom: 1.5rem; 
         }
         .card-header, .modal-header { 
-            /* background-color: #007bff;  Letting card header use its own style for now */
             color: white; 
             border-bottom: none; 
         }
-        .card-header { /* Default card header style, can be overridden */
-             background-color: #007bff; /* Blue for analytics card header */
+        .card-header { 
+             background-color: #007bff; 
         }
+        /* Specific header for goals card on dashboardGoalsCard (if it were still on index.html) */
+        /* This can be removed or adapted if goals_page.html has a similar card with this ID */
+        /* #dashboardGoalsCard > .card-header { 
+            background-color: #6c757d; 
+        } */
         .modal-header .btn-close { 
             filter: invert(1) grayscale(100%) brightness(200%); 
         }
@@ -43,6 +47,8 @@
         .flashes .success { color: #0f5132; background-color: #d1e7dd; border-color: #badbcc;}
         .flashes .error { color: #842029; background-color: #f8d7da; border-color: #f5c2c7;}
         .flashes .info { color: #055160; background-color: #cff4fc; border-color: #b6effb;}
+        .flashes .warning { color: #664d03; background-color: #fff3cd; border-color: #ffecb5;}
+
         .form-control, .form-select, .btn { 
             border-radius: 0.375rem; 
         }
@@ -56,10 +62,9 @@
             box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
         }
     </style>
-    {% block head_styles %}{% endblock %} {# For page-specific styles #}
+    {% block head_styles %}{% endblock %} 
 </head>
 <body>
-    {# MODIFICATION: Added Navbar #}
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
         <div class="container-xl">
             <a class="navbar-brand fw-bold" href="{{ url_for('main.index') }}">BudgetApp Pro</a>
@@ -69,26 +74,24 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
-                        {# Assuming 'main.index' is your dashboard route for now #}
                         <a class="nav-link {% if request.endpoint == 'main.index' %}active{% endif %}" aria-current="page" href="{{ url_for('main.index') }}">Dashboard</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#">Reports (Soon)</a> {# Placeholder #}
+                        <a class="nav-link {% if request.endpoint == 'goal_routes.view_goals_page' %}active{% endif %}" href="{{ url_for('goal_routes.view_goals_page') }}">Goals</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#">Goals (Soon)</a> {# Placeholder #}
+                        <a class="nav-link" href="#">Reports (Soon)</a> 
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#">Settings (Soon)</a> {# Placeholder #}
+                        <a class="nav-link" href="#">Settings (Soon)</a> 
                     </li>
                 </ul>
             </div>
         </div>
     </nav>
 
-    <div class="container-xl mt-4"> {# Added mt-4 for spacing below fixed navbar #}
+    <div class="container-xl mt-4"> 
         <header class="text-center mb-4">
-             {# Page title can be set by individual templates now #}
             <h1 class="display-5 fw-bold">{% block page_title %}Budget Dashboard & Analytics{% endblock %}</h1>
         </header>
 
@@ -102,7 +105,7 @@
             {% endif %}
         {% endwith %}
 
-        {% block content %}{% endblock %} {# Main content of the page will go here #}
+        {% block content %}{% endblock %} 
 
         <footer class="text-center mt-5 mb-3 text-muted">
             <small>BudgetApp Pro &copy; {{ current_year if current_year else '' }}</small>
@@ -112,6 +115,6 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" xintegrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     
-    {% block scripts %}{% endblock %} {# For page-specific JavaScript #}
+    {% block scripts %}{% endblock %} 
 </body>
 </html>

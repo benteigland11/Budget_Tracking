@@ -26,6 +26,8 @@ def parse_categories(category_list_str):
             if current_main_category:
                 parsed.append((stripped_line, current_main_category))
             else:
+                # This case should ideally not happen with well-formed input,
+                # but as a fallback, treat it as a main category.
                 print(f"Warning: Subcategory '{stripped_line}' found without a parent, treating as main.")
                 parsed.append((stripped_line, None))
                 current_main_category = stripped_line 
@@ -35,10 +37,13 @@ def parse_categories(category_list_str):
 def initialize_database(custom_categories_str=None):
     """
     Initializes the database with tables for categories, transactions, 
-    budget goals, paychecks, and paycheck deductions.
-    Ensures database is created in the 'instance' folder.
+    budget goals, paychecks, paycheck deductions, and financial goals.
+    Ensures database is created in the 'instance' folder within the project directory.
     """
-    instance_folder_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'instance')
+    # Corrected path: Assumes init_db.py is in the project root.
+    # The instance folder will be created at Project_Root/instance/
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    instance_folder_path = os.path.join(project_root, 'instance')
 
     if not os.path.exists(instance_folder_path):
         os.makedirs(instance_folder_path)
@@ -64,14 +69,17 @@ def initialize_database(custom_categories_str=None):
     ''')
     print("'categories' table checked/created.")
     try:
+        # Attempt to add column only if it doesn't exist (SQLite specific check might be complex, so try-except)
         cursor.execute("ALTER TABLE categories ADD COLUMN financial_goal_type TEXT CHECK(financial_goal_type IN ('Need', 'Want', 'Saving', NULL))")
         print("Attempted to add 'financial_goal_type' column to 'categories' table.")
-        conn.commit()
+        conn.commit() # Commit after ALTER TABLE
     except sqlite3.OperationalError as e:
         if "duplicate column name" in str(e).lower():
             print("'financial_goal_type' column already exists in 'categories' table.")
         else:
+            # Log other operational errors if they occur
             print(f"Could not add 'financial_goal_type' (may already exist or other issue): {e}")
+
 
     # Transactions Table
     cursor.execute('''
@@ -89,14 +97,15 @@ def initialize_database(custom_categories_str=None):
     try:
         cursor.execute("ALTER TABLE transactions ADD COLUMN description TEXT")
         print("Attempted to add 'description' column to 'transactions' table.")
-        conn.commit()
+        conn.commit() # Commit after ALTER TABLE
     except sqlite3.OperationalError as e:
         if "duplicate column name" in str(e).lower():
             print("'description' column already exists in 'transactions' table.")
         else:
              print(f"Could not add 'description' column (may already exist or other issue): {e}")
 
-    # Budget Goals Table
+
+    # Budget Goals Table (for monthly category budgets)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS budget_goals (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -110,7 +119,6 @@ def initialize_database(custom_categories_str=None):
     ''')
     print("'budget_goals' table checked/created.")
 
-    # --- MODIFICATION: New Tables for Paycheck Data ---
     # Paychecks Table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS paychecks (
@@ -137,47 +145,67 @@ def initialize_database(custom_categories_str=None):
         )
     ''')
     print("'paycheck_deductions' table checked/created.")
-    # --- End New Tables ---
+
+    # --- NEW: Goals Table (for financial savings goals) ---
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS goals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            target_amount REAL NOT NULL,
+            current_amount REAL NOT NULL DEFAULT 0,
+            target_date TEXT, -- Expected format: YYYY-MM-DD
+            is_completed BOOLEAN NOT NULL DEFAULT 0, -- 0 for False, 1 for True
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    print("'goals' table checked/created.")
+    # --- End New Goals Table ---
 
 
     # Populate categories if a custom list is provided and the table is empty
     cursor.execute("SELECT COUNT(*) FROM categories")
     if cursor.fetchone()[0] == 0 and custom_categories_str:
-        # ... (category population logic remains the same as init_db_py_v2) ...
         print("Populating categories from custom list...")
         categories_to_insert_tuples = parse_categories(custom_categories_str)
-        main_categories_map = {} 
+        main_categories_map = {} # To store name -> id mapping for main categories
+        # First pass: insert main categories
         for name, parent_name in categories_to_insert_tuples:
-            if parent_name is None: 
+            if parent_name is None: # It's a main category
                 try:
+                    # Initialize financial_goal_type as NULL for all new categories
                     cursor.execute("INSERT INTO categories (name, parent_id, financial_goal_type) VALUES (?, NULL, NULL)", (name,))
                     main_categories_map[name] = cursor.lastrowid
                 except sqlite3.IntegrityError:
+                    # If it already exists (e.g., due to unique constraint), fetch its ID
                     print(f"Main category '{name}' might already exist. Fetching its ID.")
                     existing_main_cat = cursor.execute("SELECT id FROM categories WHERE name = ? AND parent_id IS NULL", (name,)).fetchone()
                     if existing_main_cat:
                         main_categories_map[name] = existing_main_cat[0]
                     else:
+                        # This should not happen if IntegrityError was due to this category
                         print(f"Could not confirm or add main category '{name}'. Subcategories might be affected.")
+        
+        # Second pass: insert subcategories
         for name, parent_name in categories_to_insert_tuples:
-            if parent_name is not None: 
+            if parent_name is not None: # It's a subcategory
                 if parent_name in main_categories_map:
                     parent_id = main_categories_map[parent_name]
                     try:
+                        # Initialize financial_goal_type as NULL
                         cursor.execute("INSERT INTO categories (name, parent_id, financial_goal_type) VALUES (?, ?, NULL)", (name, parent_id))
                     except sqlite3.IntegrityError:
                         print(f"Subcategory '{name}' under '{parent_name}' might already exist.")
                 else:
                     print(f"Warning: Parent '{parent_name}' for subcategory '{name}' not found or not added. Skipping subcategory.")
         print("Categories populated.")
-    elif custom_categories_str: 
+    elif custom_categories_str: # Table not empty, but custom list provided
         print("Categories table already has data. Custom population skipped.")
-    else: 
+    else: # No custom list and table is empty
         print("No custom category list provided and categories table is empty. Add categories via UI.")
 
     conn.commit()
     conn.close()
-    print("Database initialization complete (with paycheck tables).")
+    print("Database initialization complete (with financial goals table).")
 
 if __name__ == '__main__':
     user_category_list = """
@@ -185,7 +213,7 @@ Housing
     Rent/Mortgage
     Property Taxes
 Food
-    Grocercies
+    Groceries
     Dining out
 Transportation
     Gas
@@ -194,5 +222,23 @@ Savings
     Emergency Fund
     401k
     HSA
-    """ # Example shorter list
+Utilities
+    Electricity
+    Internet
+Personal Care
+    Haircut
+    Toiletries
+Entertainment
+    Movies
+    Concerts
+Debt Payments
+    Student Loan
+    Credit Card
+Miscellaneous
+    Gifts
+    Donations
+System
+    Goal Contributions
+    Goal Withdrawals
+    """
     initialize_database(custom_categories_str=user_category_list)

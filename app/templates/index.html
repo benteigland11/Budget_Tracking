@@ -3,39 +3,23 @@
 {% block title %}Budget Dashboard & Analytics{% endblock %}
 
 {% block head_styles %}
+{{ super() }} {# Includes styles from base.html #}
 <style>
-    /* Page-specific styles */
+    /* Page-specific styles for index.html */
     .table-hover tbody tr:hover { background-color: #e9ecef; }
     .chart-container { position: relative; margin: 0.5rem auto; height: 300px; width: 100%; }
     .summary-stats .card { text-align: center; margin-bottom: 1rem; }
     .summary-stats h5 { font-size: 1.0rem; color: #6c757d; margin-bottom: 0.25rem; }
     .summary-stats p { font-size: 1.5rem; font-weight: bold; margin-bottom: 0; }
-    .category-list .list-group-item { padding-left: 0; border-radius: 0.375rem; border:none; }
-    .category-list .main-category-item { font-weight: bold; background-color: #e9ecef; padding: 0.5rem 0.75rem; margin-top: 0.5rem; border-radius: 0.375rem;}
-    .category-list .sub-category-item { padding-left: 1.5rem; }
-    .delete-btn, .edit-btn, .pending-delete-btn, .delete-existing-category-btn, .undo-delete-btn { 
-        font-size: 0.8em; 
-        padding: 0.2rem 0.5rem; 
-        margin-left: 0.25rem; 
-    }
     .action-buttons { margin-bottom: 1.5rem; }
-    .action-buttons .btn { margin-right: 0.5rem; margin-bottom: 0.5rem;} /* Add some spacing for multiple buttons */
-    .subcategory-select-wrapper { display: none; }
+    .action-buttons .btn { margin-right: 0.5rem; margin-bottom: 0.5rem;}
+    .subcategory-select-wrapper { display: none; } /* For transaction modal */
     .transaction-actions .btn { margin-left: 5px;}
-    .budget-input { width: 120px; text-align: right; } 
-    .financial-type-select { width: 120px; font-size: 0.85rem; padding: 0.25rem 0.5rem;}
+    .budget-input { width: 120px; text-align: right; } /* For budget modal */
     .variance-positive { color: #198754; } 
     .variance-negative { color: #dc3545; }
-    #backToMainCategoriesChartBtn { display: none; }
-    .budget-category-header { font-weight: bold; padding-top: 0.5rem; padding-bottom: 0.25rem; }
-    .budget-subcategory-row td { padding-left: 2rem !important; }
-    .pending-category { font-style: italic; color: #0d6efd; }
+    #backToMainCategoriesChartBtn { display: none; } /* For analytics chart */
     .period-type-selector .btn { font-size: 0.85rem; padding: 0.375rem 0.75rem;}
-    .marked-for-deletion { text-decoration: line-through; opacity: 0.6; }
-    .marked-for-deletion .form-select { 
-        pointer-events: none;
-        background-color: #e9ecef; 
-    }
     .period-type-selector .btn-check:checked + .btn-outline-light, 
     .period-type-selector .btn-check:checked + .btn-light {
         background-color: #f8f9fa; 
@@ -50,18 +34,73 @@
         background-color: rgba(255, 255, 255, 0.15); 
         color: #f8f9fa;
     }
-    #category-modal-alerts .alert { font-size: 0.9rem; padding: 0.5rem 1rem;}
-    #budgetPlanningModal .loading-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
+    #category-modal-alerts .alert, #goal-modal-alerts .alert { font-size: 0.9rem; padding: 0.5rem 1rem;}
+
+    /* Goal Scroller Styles */
+    .goal-scroller-wrapper {
         width: 100%;
-        height: 100%;
-        background-color: rgba(255, 255, 255, 0.7);
+        padding: 0; 
+        box-sizing: border-box;
+        z-index: 1025; 
+    }
+    .goal-scroller-container {
+        width: 100%;
+        overflow: hidden;
+        height: 50px; 
+    }
+    .goal-scroller-content { 
         display: flex;
-        justify-content: center;
+        width: fit-content; 
+    }
+    .goal-scroller-content.is-animating { 
+        animation-name: goalsMarquee;
+        animation-timing-function: linear;
+        animation-iteration-count: infinite;
+        animation-play-state: running; 
+    }
+    .goal-scroller-content:hover { 
+        animation-play-state: paused;
+    }
+    .goal-scroller-item {
+        display: flex;
         align-items: center;
-        z-index: 10; 
+        padding: 0 18px; 
+        height: 50px;
+        flex-shrink: 0;
+        border-right: 1px solid #495057; 
+        cursor: pointer; 
+    }
+    .goal-scroller-item .goal-name {
+        font-weight: 600;
+        font-size: 0.9rem;
+        margin-right: 12px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 150px; 
+    }
+    .goal-scroller-item .goal-progress-text {
+        font-size: 0.8rem;
+        margin-right: 10px;
+        color: #ced4da; 
+        white-space: nowrap;
+    }
+    .goal-scroller-item .goal-mini-progress {
+        width: 80px;
+        height: 10px;
+        background-color: #495057; 
+        border-radius: 5px;
+        overflow: hidden;
+        flex-shrink: 0;
+    }
+    .goal-scroller-item .goal-mini-progress-bar {
+        height: 100%;
+        background-color: #0dcaf0; 
+        border-radius: 5px;
+    }
+    @keyframes goalsMarquee {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-50%); } 
     }
 </style>
 {% endblock %}
@@ -76,6 +115,14 @@
 
 
 {% block content %}
+    <div id="goalScrollerWrapper" class="goal-scroller-wrapper bg-dark text-white shadow-sm mb-3 sticky-top">
+        <div id="goalScrollerContainer" class="goal-scroller-container">
+            <div id="goalScrollerContent" class="goal-scroller-content">
+                <div class="goal-scroller-item" style="border-right: none;"><span class="goal-name text-muted">Loading active goals...</span></div>
+            </div>
+        </div>
+    </div>
+
     <div class="row action-buttons text-center text-md-start">
         <div class="col-md-auto mb-2 mb-md-0">
             <button type="button" class="btn btn-primary btn-lg" 
@@ -95,7 +142,7 @@
         </div>
         <div class="col-md-auto mb-2 mb-md-0">
             <a href="{{ url_for('main.index', budget_year=budget_planning_year, budget_month=budget_planning_month, open_budget_planner='true') }}" class="btn btn-info btn-lg" id="openBudgetPlannerBtn">
-                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-calendar2-check-fill me-2" viewBox="0 0 16 16"><path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5m9.954 3H2.545c-.3 0-.545.224-.545.5v1c0 .276.244.5.545.5h10.91c.3 0 .545-.224-.545-.5v-1c0-.276-.244-.5-.545-.5m-2.6 5.854a.5.5 0 0 0-.708-.708L7.5 10.793 6.354 9.646a.5.5 0 1 0-.708.708l1.5 1.5a.5.5 0 0 0 .708 0z"/></svg> Plan Budget
+                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-calendar2-check-fill me-2" viewBox="0 0 16 16"><path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5m9.954 3H2.545c-.3 0-.545.224-.545.5v1c0 .276.244.5.545.5h10.91c.3 0 .545-.224-.545-.5v-1c0-.276-.244.5-.545-.5m-2.6 5.854a.5.5 0 0 0-.708-.708L7.5 10.793 6.354 9.646a.5.5 0 1 0-.708.708l1.5 1.5a.5.5 0 0 0 .708 0z"/></svg> Plan Budget
             </a>
         </div>
         <div class="col-md-auto">
@@ -260,12 +307,13 @@
     {% include "_manage_categories_modal.html" %}
     {% include "_budget_planning_modal.html" %}
     {% include "_log_paycheck_modal.html" %}
+    {% include "_manage_goals_modal.html" %} {# Modal for goal management #}
 
 {% endblock %}
 
 
 {% block scripts %}
-{# Make Flask data available to external JS files #}
+{{ super() }} {# Includes scripts from base.html #}
 <script>
     var hierarchicalDataFromFlask = {{ hierarchical_categories_data_for_js|tojson|safe }};
     var monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -280,13 +328,26 @@
     var initialExpectedVsActualData = JSON.parse({{ expected_vs_actual_chart_data|tojson|safe }});
     var nwsBudgetedChartData = {{ nws_budgeted_chart_data|tojson|safe }};
     var nwsActualChartData = {{ nws_actual_chart_data|tojson|safe }};
+    
+    // initial_goals_data is defined here for GoalScroller and GoalModalManager
+    var initial_goals_data = {{ initial_goals_data|tojson|safe if initial_goals_data else '[]' }};
 
+    // flask_urls is defined here for all JS modules on this page
     var flask_urls = {
         get_planning_data: "{{ url_for('budgets.get_planning_data') }}",
         save_all_category_changes: "{{ url_for('categories.save_all_category_changes') }}",
         main_index: "{{ url_for('main.index') }}",
-        // MODIFICATION: Add URL for logging paycheck
-        log_paycheck: "{{ url_for('paychecks.log_paycheck') }}" 
+        log_paycheck: "{{ url_for('paychecks.log_paycheck') }}",
+        
+        // URLs for Goals API
+        api_goals_create_url: "{{ url_for('goal_routes.create_goal') }}",
+        api_goals_list_url: "{{ url_for('goal_routes.list_goals') }}",
+        api_goals_update_url_base: "{{ url_for('goal_routes.update_goal', goal_id=0) | replace('0', '') }}",
+        api_goals_delete_url_base: "{{ url_for('goal_routes.delete_goal_route', goal_id=0) | replace('0', '') }}",
+        api_goals_contribute_url_base: "{{ url_for('goal_routes.contribute_to_goal', goal_id=0) | replace('0', '') }}",
+        api_goals_withdraw_url_base: "{{ url_for('goal_routes.withdraw_from_goal', goal_id=0) | replace('0', '') }}",
+        api_goal_details_url_template: "{{ url_for('goal_routes.get_goal_details_api', goal_id=999999999) | replace('999999999', 'GOAL_ID_PLACEHOLDER') }}",
+        view_goals_page_url: "{{ url_for('goal_routes.view_goals_page') }}" // For navigation if needed
     };
 </script>
 
@@ -296,7 +357,29 @@
 <script src="{{ url_for('static', filename='js/charts.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/categoryModal.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/budgetModal.js') }}" defer></script>
-{# MODIFICATION: Include the new paycheckModal.js file #}
 <script src="{{ url_for('static', filename='js/paycheckModal.js') }}" defer></script> 
 
+{# Modularized Goal JS Files #}
+<script src="{{ url_for('static', filename='js/goals/goalApiService.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/goals/goalModal.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/goals/goalScroller.js') }}" defer></script>
+{# goalsDisplay.js is not needed for index.html, only for goals_page.html #}
+
+<script type="text/javascript">
+    document.addEventListener('DOMContentLoaded', () => {
+        if (typeof initial_goals_data !== 'undefined' && typeof flask_urls !== 'undefined' && typeof GoalApiService !== 'undefined' && typeof GoalModalManager !== 'undefined' && typeof GoalScroller !== 'undefined') {
+            const apiService = new GoalApiService(flask_urls);
+            let goalScrollerInstance; 
+            const modalManager = new GoalModalManager('#manageGoalsModal', apiService, () => {
+                // This callback is triggered after a successful modal action
+                if (goalScrollerInstance && typeof goalScrollerInstance.refresh === 'function') {
+                    goalScrollerInstance.refresh();
+                }
+            });
+            if (document.getElementById('goalScrollerWrapper')) { 
+                goalScrollerInstance = new GoalScroller('#goalScrollerContent', '#goalScrollerContainer', initial_goals_data, apiService, modalManager);
+            }
+        } else { console.error('Initial goals data, flask_urls, or Goal JS Classes not found for dashboard setup.'); }
+    });
+</script>
 {% endblock %}
