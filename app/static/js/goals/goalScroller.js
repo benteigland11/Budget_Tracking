@@ -1,4 +1,3 @@
-// static/js/goals/goalScroller.js
 /**
  * Manages the goal scroller on the dashboard, including population,
  * animation, and click interactions.
@@ -8,7 +7,7 @@ class GoalScroller {
         this.scrollerContentEl = document.querySelector(scrollerContentSelector);
         this.scrollerContainerEl = document.querySelector(scrollerContainerSelector);
         this.apiService = apiService;
-        this.modalManager = modalManager; // To open modal on item click
+        this.modalManager = modalManager;
 
         if (!this.scrollerContentEl || !this.scrollerContainerEl) {
             console.error("Scroller content or container element not found.");
@@ -19,7 +18,12 @@ class GoalScroller {
         this._attachEventListeners();
     }
 
-    _formatCurrency(amount) { // Local helper or use a global one
+    // Add escapeHtml to prevent XSS
+    escapeHtml(str) {
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    _formatCurrency(amount) {
         if (amount === null || typeof amount === 'undefined') amount = 0;
         if (typeof amount !== 'number') amount = parseFloat(amount) || 0;
         return '$' + amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -27,9 +31,11 @@ class GoalScroller {
 
     renderScrollerItem(goalData) {
         const progressPercentage = Math.min(100, Math.max(0, parseFloat(goalData.progress) || 0));
+        // Escape goal name to prevent XSS
+        const escapedName = this.escapeHtml(goalData.name);
         return `
-            <div class="goal-scroller-item" data-goal-id="${goalData.id}" title="View/Manage: ${goalData.name}">
-                <span class="goal-name">${goalData.name}</span>
+            <div class="goal-scroller-item" data-goal-id="${goalData.id}" title="View/Manage: ${escapedName}">
+                <span class="goal-name">${escapedName}</span>
                 <span class="goal-progress-text">${this._formatCurrency(goalData.current_amount)} / ${this._formatCurrency(goalData.target_amount)}</span>
                 <div class="goal-mini-progress" title="${progressPercentage.toFixed(1)}% Complete">
                     <div class="goal-mini-progress-bar" style="width: ${progressPercentage}%;"></div>
@@ -42,7 +48,7 @@ class GoalScroller {
 
         this.scrollerContentEl.classList.remove('is-animating');
         this.scrollerContentEl.style.animation = 'none';
-        this.scrollerContentEl.offsetHeight; // Trigger reflow
+        this.scrollerContentEl.offsetHeight;
         this.scrollerContentEl.innerHTML = '';
 
         const activeGoals = goals.filter(goal => !goal.is_completed);
@@ -88,7 +94,6 @@ class GoalScroller {
             }
         } catch (error) {
             console.error("Error refreshing scroller goals:", error);
-            // Optionally display an error in the scroller itself
             if (this.scrollerContentEl) this.scrollerContentEl.innerHTML = '<div class="goal-scroller-item" style="border-right: none;"><span class="goal-name text-danger">Error refreshing.</span></div>';
         }
     }
@@ -103,7 +108,6 @@ class GoalScroller {
                         this.modalManager.showModalWithGoal(data.goal);
                     } else if (!data.goal) {
                         console.warn('Goal not found for scroller click:', goalId);
-                        // Optionally use modalManager to display an error if it's available
                         if(this.modalManager && typeof this.modalManager.displayAlert === 'function') {
                             this.modalManager.displayAlert('Goal details not found.', 'warning');
                         }
@@ -111,7 +115,7 @@ class GoalScroller {
                 })
                 .catch(error => {
                     console.error('Error fetching goal details from scroller click:', error);
-                     if(this.modalManager && typeof this.modalManager.displayAlert === 'function') {
+                    if(this.modalManager && typeof this.modalManager.displayAlert === 'function') {
                         this.modalManager.displayAlert('Could not load goal details.', 'danger');
                     }
                 });

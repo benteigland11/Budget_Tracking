@@ -1,4 +1,3 @@
-// static/js/goals/goalsDisplay.js
 /**
  * Manages rendering goal cards/list in #goalsDisplayArea on goals_page.html
  * and their interactions.
@@ -7,7 +6,7 @@ class GoalsDisplay {
     constructor(displayAreaSelector, initialGoals, apiService, modalManager) {
         this.displayAreaEl = document.querySelector(displayAreaSelector);
         this.apiService = apiService;
-        this.modalManager = modalManager; // For opening modal for edit/fund
+        this.modalManager = modalManager;
 
         if (!this.displayAreaEl) {
             console.error(`Goals display area element not found for selector: ${displayAreaSelector}`);
@@ -18,7 +17,12 @@ class GoalsDisplay {
         this._attachEventListeners();
     }
 
-    _formatCurrency(amount) { // Local helper or use a global one
+    // Add escapeHtml to prevent XSS
+    escapeHtml(str) {
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    _formatCurrency(amount) {
         if (amount === null || typeof amount === 'undefined') amount = 0;
         if (typeof amount !== 'number') amount = parseFloat(amount) || 0;
         return '$' + amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -33,11 +37,13 @@ class GoalsDisplay {
         const isCompletedClass = goalData.is_completed ? 'border-success bg-success-subtle text-success-emphasis' : 'border-light';
         const headerBgClass = goalData.is_completed ? 'bg-success-subtle' : 'bg-light';
 
-        // Using page-goal-action-btn class for event delegation
+        // Escape goal name to prevent XSS
+        const escapedName = this.escapeHtml(goalData.name);
+
         cardCol.innerHTML = `
             <div class="card h-100 shadow-sm ${isCompletedClass}">
                 <div class="card-header d-flex justify-content-between align-items-center ${headerBgClass}">
-                    <h5 class="card-title mb-0 text-truncate fs-6" title="${goalData.name}">${goalData.name}</h5>
+                    <h5 class="card-title mb-0 text-truncate fs-6" title="${escapedName}">${escapedName}</h5>
                     ${goalData.is_completed ? '<span class="badge bg-success">Completed</span>' : `<span class="badge bg-info-subtle border border-info-subtle text-info-emphasis">${progress.toFixed(0)}%</span>`}
                 </div>
                 <div class="card-body">
@@ -66,7 +72,7 @@ class GoalsDisplay {
 
     displayGoals(goals) {
         if (!this.displayAreaEl) return;
-        this.displayAreaEl.innerHTML = ''; // Clear previous goals
+        this.displayAreaEl.innerHTML = '';
 
         if (!goals || goals.length === 0) {
             this.displayAreaEl.innerHTML = '<div class="col-12"><p class="text-muted text-center fs-5 mt-5">No financial goals set up yet. Click "Add/Manage Goals" to create your first one!</p></div>';
@@ -105,7 +111,7 @@ class GoalsDisplay {
                         this.modalManager.showModalWithGoal(data.goal);
                     } else if (!data.goal) {
                         console.warn('Goal not found for edit:', goalId);
-                         if(this.modalManager) this.modalManager.displayAlert('Goal details not found.', 'warning');
+                        if(this.modalManager) this.modalManager.displayAlert('Goal details not found.', 'warning');
                     }
                 })
                 .catch(err => {
@@ -114,7 +120,7 @@ class GoalsDisplay {
                 });
         } else if (action === 'fund') {
             if (this.modalManager) {
-                const goal = currentGoalsData.find(g => g.id.toString() === goalId); // Assuming currentGoalsData is accessible or passed
+                const goal = currentGoalsData.find(g => g.id.toString() === goalId);
                 this.modalManager.showModalForFunding(goalId, goal ? goal.name : 'Selected Goal');
             }
         } else if (action === 'delete') {
@@ -124,8 +130,8 @@ class GoalsDisplay {
                 this.apiService.deleteGoalApi(goalId)
                     .then(result => {
                         if (result.status === 'success') {
-                            if(this.modalManager) this.modalManager.displayAlert(result.message || 'Goal deleted successfully.', 'success'); // Show alert in modal if open
-                            this.refresh(); // Refresh the main display
+                            if(this.modalManager) this.modalManager.displayAlert(result.message || 'Goal deleted successfully.', 'success');
+                            this.refresh();
                         } else {
                             if(this.modalManager) this.modalManager.displayAlert(result.message || 'Failed to delete goal.', 'danger');
                         }
