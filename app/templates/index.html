@@ -19,6 +19,7 @@
         margin-left: 0.25rem; 
     }
     .action-buttons { margin-bottom: 1.5rem; }
+    .action-buttons .btn { margin-right: 0.5rem; margin-bottom: 0.5rem;} /* Add some spacing for multiple buttons */
     .subcategory-select-wrapper { display: none; }
     .transaction-actions .btn { margin-left: 5px;}
     .budget-input { width: 120px; text-align: right; } 
@@ -69,7 +70,7 @@
     {% if view_period_type == 'yearly' %}
         Yearly Overview - {{ view_year }}
     {% else %}
-        Monthly Dashboard - {{ view_month | month_name }} {{ view_year }}
+        Monthly Dashboard - {{ view_month | month_name if view_month else '' }} {{ view_year }}
     {% endif %}
 {% endblock %}
 
@@ -85,6 +86,14 @@
             </button>
         </div>
         <div class="col-md-auto mb-2 mb-md-0">
+            <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#logPaycheckModal" id="openLogPaycheckModalBtn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-wallet2 me-2" viewBox="0 0 16 16">
+                    <path d="M12.136.326A1.5 1.5 0 0 1 14 1.78V3h.5A1.5 1.5 0 0 1 16 4.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 13.5v-9A1.5 1.5 0 0 1 1.5 3H2V1.78a1.5 1.5 0 0 1 1.404-1.454L4.136 0h7.728zM1.5 4a.5.5 0 0 0-.5.5v9a.5.5 0 0 0 .5.5h13a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5z"/>
+                    <path d="M1 3h14V1.78a.5.5 0 0 0-.26-.445l-.868-.434H2.129L1.26 1.335A.5.5 0 0 0 1 1.78z"/>
+                </svg> Log Paycheck
+            </button>
+        </div>
+        <div class="col-md-auto mb-2 mb-md-0">
             <a href="{{ url_for('main.index', budget_year=budget_planning_year, budget_month=budget_planning_month, open_budget_planner='true') }}" class="btn btn-info btn-lg" id="openBudgetPlannerBtn">
                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-calendar2-check-fill me-2" viewBox="0 0 16 16"><path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5m9.954 3H2.545c-.3 0-.545.224-.545.5v1c0 .276.244.5.545.5h10.91c.3 0 .545-.224-.545-.5v-1c0-.276-.244-.5-.545-.5m-2.6 5.854a.5.5 0 0 0-.708-.708L7.5 10.793 6.354 9.646a.5.5 0 1 0-.708.708l1.5 1.5a.5.5 0 0 0 .708 0z"/></svg> Plan Budget
             </a>
@@ -96,7 +105,7 @@
         </div>
     </div>
     
-    <section class="summary-stats mb-2"> {# Reduced margin-bottom for tighter layout #}
+    <section class="summary-stats mb-2"> 
          <div class="row">
             <div class="col-md-4"><div class="card"><div class="card-body py-3 px-2"><h5>Total Income (All Time)</h5><p class="text-success mb-0">${{ "%.2f"|format(total_income) }}</p></div></div></div>
             <div class="col-md-4"><div class="card"><div class="card-body py-3 px-2"><h5>Total Expenses (All Time)</h5><p class="text-danger mb-0">${{ "%.2f"|format(total_expenses) }}</p></div></div></div>
@@ -104,7 +113,6 @@
         </div>
     </section>
 
-    {# MODIFICATION: Added new row for Period-Specific Totals #}
     <section class="summary-stats mb-4">
         <div class="row">
             <div class="col-md-4">
@@ -142,7 +150,6 @@
             </div>
         </div>
     </section>
-
 
     <section id="analyticsSection" class="mb-5">
         <div class="card">
@@ -252,6 +259,7 @@
     {% include "_add_transaction_modal.html" %}
     {% include "_manage_categories_modal.html" %}
     {% include "_budget_planning_modal.html" %}
+    {% include "_log_paycheck_modal.html" %}
 
 {% endblock %}
 
@@ -276,7 +284,9 @@
     var flask_urls = {
         get_planning_data: "{{ url_for('budgets.get_planning_data') }}",
         save_all_category_changes: "{{ url_for('categories.save_all_category_changes') }}",
-        main_index: "{{ url_for('main.index') }}"
+        main_index: "{{ url_for('main.index') }}",
+        // MODIFICATION: Add URL for logging paycheck
+        log_paycheck: "{{ url_for('paychecks.log_paycheck') }}" 
     };
 </script>
 
@@ -286,5 +296,7 @@
 <script src="{{ url_for('static', filename='js/charts.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/categoryModal.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/budgetModal.js') }}" defer></script>
+{# MODIFICATION: Include the new paycheckModal.js file #}
+<script src="{{ url_for('static', filename='js/paycheckModal.js') }}" defer></script> 
 
 {% endblock %}

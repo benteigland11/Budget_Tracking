@@ -1,0 +1,65 @@
+{# app/templates/_log_paycheck_modal.html #}
+<div class="modal fade" id="logPaycheckModal" tabindex="-1" aria-labelledby="logPaycheckModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="logPaycheckModalLabel">Log Paycheck Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" id="logPaycheckForm"> 
+                <div class="modal-body">
+                    {# MODIFICATION: Added alert container #}
+                    <div id="paycheck-modal-alerts" class="mb-3"></div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="paycheck_date" class="form-label">Pay Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="paycheck_date" name="pay_date" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="paycheck_employer" class="form-label">Employer (Optional)</label>
+                            <input type="text" class="form-control" id="paycheck_employer" name="employer_name" placeholder="e.g., Company Inc.">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="paycheck_gross_pay" class="form-label">Gross Pay <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" step="0.01" min="0" class="form-control" id="paycheck_gross_pay" name="gross_pay" required placeholder="e.g., 2500.00">
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    <h6>Deductions:</h6>
+                    <div id="paycheckDeductionsContainer">
+                        {# Deductions will be added here dynamically by JavaScript #}
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-success mt-2" id="addPaycheckDeductionBtn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-plus-circle" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/><path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/></svg>
+                        Add Deduction
+                    </button>
+
+                    <hr class="my-4">
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Calculated Net Pay:</h5>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <h5 id="calculatedNetPayDisplay">$0.00</h5>
+                        </div>
+                    </div>
+                     <div class="mb-3">
+                        <label for="paycheck_notes" class="form-label">Notes (Optional)</label>
+                        <textarea class="form-control" id="paycheck_notes" name="notes" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary" id="savePaycheckBtn">Log Paycheck & Record Net Income</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
