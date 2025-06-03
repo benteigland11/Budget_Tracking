@@ -1,0 +1,39 @@
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Configuration and environment files
+config.py
+.env
+*.env
+secrets.json
+
+# Python cache and build files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+build/
+dist/
+*.egg-info/
+
+# Logs and temporary files
+*.log
+*.log.*
+*.tmp
+temp/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# macOS and Windows system files
+.DS_Store
+Thumbs.db
+
+# Flask instance folder (if using)
+instance/
